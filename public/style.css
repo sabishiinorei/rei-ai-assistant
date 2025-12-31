@@ -1,0 +1,159 @@
+:root {
+  --bg: #0b1a22;
+  --panel: rgba(20, 35, 45, 0.85);
+  --border: rgba(150, 200, 220, 0.35);
+  --rei: #b9e3ff;
+  --user: #ffffff;
+  --accent: #a8d8ff;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+
+  background: url("bg.jpg") center / cover no-repeat fixed;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: -1;
+}
+
+body {
+  animation: bgPulse 10s ease-in-out infinite;
+}
+
+@keyframes bgPulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.05); }
+  100% { filter: brightness(1); }
+}
+
+.app {
+  width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow:
+    0 0 40px rgba(120,180,255,0.2),
+    inset 0 0 20px rgba(120,180,255,0.05);
+}
+
+.status::before {
+  content: "● ";
+  color: #9fffb0;
+  animation: blink 1.8s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+h1 {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 13px;
+  opacity: 0.75;
+  margin-bottom: 14px;
+}
+
+.chat {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  height: 260px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.message {
+  max-width: 80%;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.rei {
+  background: rgba(170,220,255,0.15);
+  border: 1px solid rgba(170,220,255,0.35);
+  color: var(--rei);
+}
+
+.user {
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+.input-area {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.4);
+  color: white;
+}
+
+button {
+  padding: 0 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #001018;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.footer {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow:
+      0 0 40px rgba(120,180,255,0.2),
+      inset 0 0 20px rgba(120,180,255,0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 55px rgba(120,180,255,0.35),
+      inset 0 0 30px rgba(120,180,255,0.12);
+  }
+  100% {
+    box-shadow:
+      0 0 40px rgba(120,180,255,0.2),
+      inset 0 0 20px rgba(120,180,255,0.05);
+  }
+}
+
+.app {
+  animation: pulse 6s ease-in-out infinite;
+}
