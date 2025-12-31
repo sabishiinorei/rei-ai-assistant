@@ -23,7 +23,7 @@ body {
 }
 
 .app {
-  width: min(92vw, 620px);
+  width: min(92vw, 420px);
   max-height: 90vh;
 
   background: var(--panel);
@@ -71,9 +71,9 @@ h1 {
   max-width: 85%;
   padding: clamp(12px, 2.8vw, 14px);
   margin-bottom: 10px;
-  border-radius: 15px;
+  border-radius: 14px;
 
-  font-size: clamp(10px, 2.8vw, 14px);
+  font-size: clamp(13px, 3,5vw, 15px);
   line-height: 1.4;
 
   opacity: 0;
@@ -137,14 +137,15 @@ input {
   padding: clamp(12px, 3vw, 14px);
   font-size: 14px;
 
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(0,0,0,0.4);
-  color: rgb(0, 0, 0);
+  background: rgba(0,0,0,0.4);
+  color: white
 }
 
 button {
   padding: 0 clamp(14px, 4vw, 18px);
-  border-radius: 14px;
+  border-radius: 12px;
 
   font-size: 14px;
   border: none;
