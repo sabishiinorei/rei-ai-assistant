@@ -11,12 +11,27 @@ https://rei-ai-backend.onrender.com/chat
 
 const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
 
+function getTime() {
+  const now = new Date();
+  return now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
-  div.textContent = text;
+
+  div.innerHTML =` 
+    <div class="text">${text}</div>
+    <div class="time">${getTime()}</div>
+  `;
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+
+  return div; 
 }
 
 async function sendMessage() {
@@ -26,11 +41,7 @@ async function sendMessage() {
   addMessage(text, "user");
   input.value = "";
 
-  const thinking = document.createElement("div");
-  thinking.className = "message rei";
-  thinking.textContent = "Рей думает…";
-  chat.appendChild(thinking);
-  chat.scrollTop = chat.scrollHeight;
+  const thinking = addMessage("Рей думает...", "rei");
 
   try {
     const res = await fetch(API_URL, {
@@ -42,10 +53,12 @@ async function sendMessage() {
     if (!res.ok) throw new Error("Bad response");
 
     const data = await res.json();
-    thinking.textContent = data.reply || "…";
+    thinking.querySelector(".text").textContent = data.reply || "...";
+    thinking.querySelector(".time").textContent = getTime();
 
   } catch (e) {
-    thinking.textContent = "Связь потеряна…";
+    thinking.querySelector(".text").textContent = "Связь потеряна...";
+    thinking.querySelector(".time").textContent = getTime();
     console.error(e);
   }
 }
