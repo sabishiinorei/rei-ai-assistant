@@ -157,3 +157,35 @@ button {
 .app {
   animation: pulse 6s ease-in-out infinite;
 }
+
+@media (max-width: 768px) {
+  body {
+    background-position: center;
+    background-size: cover;
+  }
+
+  .app {
+    width: 92vw;
+    height: auto;
+    min-height: 70vh;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .chat {
+    max-height: 55vh;
+  }
+
+  .message {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  input {
+    font-size: 16px;
+  }
+
+  button {
+    font-size: 15px;
+  }
+}

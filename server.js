@@ -15,10 +15,6 @@ const openai = new OpenAI({
 
 app.use(express.static("public"));
 
-// app.get("/", (req, res) => {
-//   res.send("Сервер живой!");
-// });
-
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
