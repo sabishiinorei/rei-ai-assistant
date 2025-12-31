@@ -134,9 +134,8 @@ h1 {
 
 input {
   flex: 1;
-  padding: clamp(12px, 3vw, 14px);
   font-size: 16px;
-
+  padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(0,0,0,0.4);
   background: rgba(0,0,0,0.4);
