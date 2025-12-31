@@ -2,63 +2,32 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
-
   <title>Rei AI Assistant</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <div class="app">
-    <header class="app-header">
-  <img src="logo.png" alt="Rei Logo" class="app-logo">
 
-  <div class="app-title">
-    <span class="app-status">
-      <span class="status-dot"></span>
-      Rei online
-    </span>
-    <h1>Rei AI Assistant</h1>
-  </div>
-</header>
-    <div class="chat-card">
+<div class="app">
+  <div class="status">Rei online</div>
 
-      <div class="header">
-        <div class="status">
-          <span class="dot"></span>
-          Rei online
-        </div>
-        <h1>Rei AI Assistant</h1>
-        <p class="subtitle">EVA AI Interface</p>
-      </div>
+  <h1>Rei AI Assistant</h1>
+  <div class="subtitle">EVA AI Interface</div>
 
-      <div id="chat" class="chat">
-        <div class="message ai">
-          Привет! Я Рей, чем могу помочь?
-        </div>
-      </div>
-
-      <form id="chat-form" class="input-area">
-        <input
-          id="message"
-          type="text"
-          placeholder="Написать Рей..."
-          autocomplete="off"
-        />
-        <button type="submit">Отправить</button>
-      </form>
-
-      <div class="footer">
-        EVA-inspired UI · v0.1
-      </div>
-
+  <div class="chat" id="chat">
+    <div class="message rei">
+      Кто я? Аянами Рей.
+      А кто ты?
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <div class="input-area">
+    <input id="input" placeholder="Написать Рей…" />
+    <button id="send">Отправить</button>
+  </div>
+
+  <div class="footer">EVA-inspired UI · v0.2</div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>

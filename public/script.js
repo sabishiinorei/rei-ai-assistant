@@ -2,6 +2,13 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("send");
 
+/*
+❗ ВАЖНО ❗
+ЗДЕСЬ ДОЛЖЕН БЫТЬ ТВОЙ РЕАЛЬНЫЙ BACKEND URL
+Пример:
+https://rei-ai-backend.onrender.com/chat
+*/
+
 const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
 
 function addMessage(text, type) {
