@@ -4,8 +4,7 @@ const button = document.getElementById("send");
 
 const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
 
-// приватный айди
-
+// приватный айди пользователя
 let userId = localStorage.getItem("rei_user_id");
 
 if (!userId) {
@@ -13,8 +12,7 @@ if (!userId) {
   localStorage.setItem("rei_user_id", userId);
 }
 
-// помощь с айди
-
+// время сообщений
 function getTime() {
   const now = new Date();
   return now.toLocaleTimeString([], {
@@ -23,11 +21,12 @@ function getTime() {
   });
 }
 
+// добавление сообщения в чат
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
 
-  div.innerHTML = ` 
+  div.innerHTML = `
     <div class="text">${text}</div>
     <div class="time">${getTime()}</div>
   `;
@@ -35,11 +34,35 @@ function addMessage(text, type) {
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 
-  return div; 
+  return div;
+}
+
+//голос Rei
+async function speak(text) {
+  try {
+    const res = await fetch("/voice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) return;
+
+    const blob = await res.blob();
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+
+    //нужен жест пользователя
+    audio.play();
+
+  } catch (err) {
+    console.error("Voice error:", err);
+  }
 }
 
 // логика чата
-
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
@@ -55,15 +78,21 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: text,
-        userId // новый айди пользователя
+        userId
       })
     });
 
     if (!res.ok) throw new Error("Bad response");
 
     const data = await res.json();
-    thinking.querySelector(".text").textContent = data.reply || "...";
+
+    const reply = data.reply || "...";
+
+    thinking.querySelector(".text").textContent = reply;
     thinking.querySelector(".time").textContent = getTime();
+
+    //Рей умеет говорить??
+    speak(reply);
 
   } catch (e) {
     thinking.querySelector(".text").textContent = "Связь потеряна...";
@@ -73,8 +102,8 @@ async function sendMessage() {
 }
 
 // ивенты
-
 button.addEventListener("click", sendMessage);
+
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });

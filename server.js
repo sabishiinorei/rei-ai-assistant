@@ -230,6 +230,33 @@ ${
   }
 });
 
+// голос Rei (TTS)
+app.post("/voice", async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).end();
+    }
+
+    const response = await openai.audio.speech.create({
+      model: "gpt-4o-mini-tts",
+      voice: "alloy",
+      input: text
+    });
+
+    res.set({
+      "Content-Type": "audio/mpeg"
+    });
+
+    response.body.pipe(res);
+
+  } catch (err) {
+    console.error("🎙️ Voice error:", err.message);
+    res.status(500).end();
+  }
+});
+
 const PORT = 1488;
 app.listen(PORT, () => {
   console.log(`🔥 Rei online: http://localhost:${PORT}`);
