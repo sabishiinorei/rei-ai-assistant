@@ -22,7 +22,6 @@ function getTime() {
 
 // эмоции аватара
 function setEmotion(type) {
-  if (!avatar) return;
   avatar.className = "avatar " + type;
 }
 
@@ -46,7 +45,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // реакция на пользователя
+  // реакции
   if (/люблю|милая|спасибо|классная/i.test(text)) {
     setEmotion("happy");
   } else if (/плохо|грусть|тяжело/i.test(text)) {
@@ -60,7 +59,7 @@ async function sendMessage() {
   addMessage(text, "user");
   input.value = "";
 
-  const thinking = addMessage("Рей думает...", "rei");
+  const thinking = addMessage("Рей думает…", "rei");
 
   try {
     const res = await fetch(API_URL, {
@@ -69,17 +68,14 @@ async function sendMessage() {
       body: JSON.stringify({ message: text, userId })
     });
 
-    if (!res.ok) throw new Error("Network");
-
     const data = await res.json();
     thinking.querySelector(".text").textContent = data.reply || "…";
 
-    setTimeout(() => setEmotion("calm"), 4000);
+    setTimeout(() => setEmotion("calm"), 3000);
 
   } catch (e) {
     thinking.querySelector(".text").textContent = "Связь потеряна…";
     setEmotion("caring");
-    console.error(e);
   }
 }
 
