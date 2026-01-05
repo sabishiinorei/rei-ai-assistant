@@ -85,3 +85,28 @@ input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
 
+// === LOAD REI MODEL ===
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  "/models/rei.glb",
+  (gltf) => {
+    const model = gltf.scene;
+    model.scale.set(1.2, 1.2, 1.2);
+    model.position.y = -1;
+    scene.add(model);
+
+    // лёгкий idle
+    function animate() {
+      requestAnimationFrame(animate);
+      model.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+    animate();
+  },
+  undefined,
+  (err) => {
+    console.error("Model load error:", err);
+  }
+);
+

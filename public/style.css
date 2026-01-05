@@ -235,3 +235,15 @@ button {
   0%,100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+#rei-3d {
+  width: 100%;
+  height: 240px;
+  margin: 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.04);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.05),
+    0 0 30px rgba(120,180,255,.15);
+}
