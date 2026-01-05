@@ -4,6 +4,17 @@ const button = document.getElementById("send");
 
 const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
 
+// приватный айди
+
+let userId = localStorage.getItem("rei_user_id");
+
+if (!userId) {
+  userId = crypto.randomUUID();
+  localStorage.setItem("rei_user_id", userId);
+}
+
+// помощь с айди
+
 function getTime() {
   const now = new Date();
   return now.toLocaleTimeString([], {
@@ -16,7 +27,7 @@ function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
 
-  div.innerHTML =` 
+  div.innerHTML = ` 
     <div class="text">${text}</div>
     <div class="time">${getTime()}</div>
   `;
@@ -26,6 +37,8 @@ function addMessage(text, type) {
 
   return div; 
 }
+
+// логика чата
 
 async function sendMessage() {
   const text = input.value.trim();
@@ -40,7 +53,10 @@ async function sendMessage() {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({
+        message: text,
+        userId // новый айди пользователя
+      })
     });
 
     if (!res.ok) throw new Error("Bad response");
@@ -55,6 +71,8 @@ async function sendMessage() {
     console.error(e);
   }
 }
+
+// ивенты
 
 button.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
