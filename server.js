@@ -22,24 +22,31 @@ const memoryPath = path.join(process.cwd(), "memory.json");
 // память
 
 function loadMemory() {
+  let memory;
+
   try {
-    return JSON.parse(fs.readFileSync(memoryPath, "utf-8"));
+    memory = JSON.parse(fs.readFileSync(memoryPath, "utf-8"));
   } catch {
-    return {
-      profile: {},
-      long_term: [],
-      short_term: [],
-      events: [],
-      insights: [],
-      emotional_state: {
-        mood: "спокойная",
-        energy: 0.6,
-        attachment: 0.5,
-        last_update: Date.now()
-      }
-    };
+    memory = {};
   }
+
+  // миграция структуры
+  memory.profile ??= {};
+  memory.long_term ??= [];
+  memory.short_term ??= [];
+  memory.events ??= [];
+  memory.insights ??= [];
+
+  memory.emotional_state ??= {
+    mood: "спокойная",
+    energy: 0.6,
+    attachment: 0.5,
+    last_update: Date.now()
+  };
+
+  return memory;
 }
+
 
 function saveMemory(memory) {
   fs.writeFileSync(memoryPath, JSON.stringify(memory, null, 2), "utf-8");
@@ -61,7 +68,15 @@ function saveMemorySection(section, content) {
 
 function updateEmotionalState(message) {
   const memory = loadMemory();
-  const state = memory.emotional_state;
+  memory.emotional_state ??= {
+  mood: "спокойная",
+  energy: 0.6,
+  attachment: 0.5,
+  last_update: Date.now()
+};
+
+const state = memory.emotional_state;
+
 
   const lower = message.toLowerCase();
 
