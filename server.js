@@ -19,9 +19,7 @@ app.use(express.static("public"));
 
 const memoryPath = path.join(process.cwd(), "memory.json");
 
-/* =========================
-   MEMORY CORE
-========================= */
+// память
 
 function loadMemory() {
   try {
@@ -59,9 +57,7 @@ function saveMemorySection(section, content) {
   saveMemory(memory);
 }
 
-/* =========================
-   EMOTIONAL ENGINE
-========================= */
+// эмоции
 
 function updateEmotionalState(message) {
   const memory = loadMemory();
@@ -91,9 +87,7 @@ function updateEmotionalState(message) {
   return state;
 }
 
-/* =========================
-   AUTO MEMORY ANALYSIS
-========================= */
+// автопамять
 
 async function evaluateMemory(message) {
   const response = await openai.responses.create({
@@ -132,9 +126,7 @@ async function evaluateMemory(message) {
   }
 }
 
-/* =========================
-   CHAT ENDPOINT
-========================= */
+// чат
 
 app.post("/chat", async (req, res) => {
   try {
