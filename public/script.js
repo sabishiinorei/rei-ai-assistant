@@ -1,4 +1,10 @@
 // ===============================
+// IMPORTS (ОБЯЗАТЕЛЬНО)
+// ===============================
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/GLTFLoader.js";
+
+// ===============================
 // CHAT
 // ===============================
 const chat = document.getElementById("chat");
@@ -23,12 +29,15 @@ function getTime() {
 
 function setEmotion(type) {
   avatar.className = "avatar " + type;
+
+  if (window.setReiEmotion) {
+    window.setReiEmotion(type);
+  }
 }
 
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
-  div.style.animation = "fadeIn 0.25s ease";
 
   div.innerHTML = `
     <div class="text">${text}</div>
@@ -70,7 +79,7 @@ async function sendMessage() {
     thinking.querySelector(".text").textContent = data.reply || "…";
 
     setTimeout(() => setEmotion("calm"), 3000);
-  } catch (e) {
+  } catch {
     thinking.querySelector(".text").textContent = "Связь потеряна…";
     setEmotion("caring");
   }
@@ -84,43 +93,64 @@ input.addEventListener("keydown", e => {
 // ===============================
 // 3D REI
 // ===============================
-const container = document.getElementById("rei-3d");
+const canvas = document.getElementById("rei-3d");
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(
-  35,
-  container.clientWidth / 300,
-  0.1,
-  100
-);
+const width = canvas.clientWidth || 52;
+const height = canvas.clientHeight || 52;
+
+const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 10);
 camera.position.set(0, 1.4, 2.2);
 
 const renderer = new THREE.WebGLRenderer({
+  canvas,
   alpha: true,
   antialias: true
 });
-renderer.setSize(container.clientWidth, 300);
+renderer.setSize(width, height, false);
 renderer.setPixelRatio(window.devicePixelRatio);
-container.appendChild(renderer.domElement);
 
-const light = new THREE.HemisphereLight(0xffffff, 0x223355, 1.4);
+// СВЕТ (КРИТИЧНО)
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(1, 2, 2);
 scene.add(light);
 
-const loader = new THREE.GLTFLoader();
+const loader = new GLTFLoader();
 let reiModel = null;
 
 loader.load(
   "/models/rei.glb",
   (gltf) => {
     reiModel = gltf.scene;
-    reiModel.scale.set(1.1, 1.1, 1.1);
-    reiModel.position.set(0, -1.25, 0);
+    reiModel.position.set(0, 0, 0);
+    reiModel.scale.set(1, 1, 1);
     scene.add(reiModel);
   },
   undefined,
-  (err) => console.error("Model load error:", err)
+  (err) => console.error("GLB LOAD ERROR:", err)
 );
+
+// эмоции → движения
+window.setReiEmotion = (emotion) => {
+  if (!reiModel) return;
+
+  switch (emotion) {
+    case "happy":
+      reiModel.rotation.y = 0.15;
+      break;
+    case "caring":
+      reiModel.rotation.x = -0.1;
+      break;
+    case "jealous":
+      reiModel.rotation.y = -0.2;
+      break;
+    default:
+      reiModel.rotation.set(0, 0, 0);
+  }
+};
 
 function animate() {
   requestAnimationFrame(animate);
