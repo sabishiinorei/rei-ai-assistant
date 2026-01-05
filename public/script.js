@@ -4,67 +4,82 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/
 const container = document.getElementById("rei-3d");
 if (!container) throw new Error("rei-3d not found");
 
-// сцена
+// === SCENE ===
 const scene = new THREE.Scene();
 
-// камера — ДАЛЬШЕ и НИЖЕ
+// === CAMERA ===
 const camera = new THREE.PerspectiveCamera(
-  35,
+  45,
   container.clientWidth / container.clientHeight,
-  0.1,
-  2000
+  0.01,
+  1000
 );
-camera.position.set(0, 1.6, 6);
+camera.position.set(0, 1.4, 3);
 
-// рендер
+// === RENDERER ===
 const renderer = new THREE.WebGLRenderer({
   alpha: true,
   antialias: true
 });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 container.appendChild(renderer.domElement);
 
-// 🌍 ENV LIGHT (КЛЮЧ!)
-scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+// === LIGHTS (ВАЖНО) ===
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-const keyLight = new THREE.DirectionalLight(0xffffff, 3);
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
 keyLight.position.set(5, 10, 5);
 scene.add(keyLight);
 
-// загрузка
+const fillLight = new THREE.DirectionalLight(0xffffff, 1.2);
+fillLight.position.set(-5, 5, 5);
+scene.add(fillLight);
+
+// === LOADER ===
 const loader = new GLTFLoader();
+
 loader.load(
   "./rei.glb",
   (gltf) => {
     const model = gltf.scene;
 
-    // 🔥 СКЕТЧФАБ = ОЧЕНЬ БОЛЬШОЙ
-    model.scale.setScalar(0.02);
+    // 🔥 МАГИЯ ДЛЯ SKETCHFAB
+    model.scale.setScalar(0.01); // ← если не видно — меняй на 0.005 или 0.02
+    model.rotation.y = Math.PI; // разворачиваем к камере
 
-    // центрирование
+    // центрируем модель
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
     model.position.sub(center);
+    model.position.y -= 0.9;
+
+    // фиксим материалы
+    model.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.material.side = THREE.FrontSide;
+        obj.material.transparent = true;
+      }
+    });
 
     scene.add(model);
 
-    // авто-наведение камеры
-    camera.lookAt(0, 1, 0);
-
+    // === ANIMATE ===
     function animate() {
       requestAnimationFrame(animate);
-      model.rotation.y += 0.002;
+      model.rotation.y += 0.003;
       renderer.render(scene, camera);
     }
-
     animate();
   },
   undefined,
-  (e) => console.error("GLB ERROR", e)
+  (err) => {
+    console.error("GLB ERROR:", err);
+  }
 );
 
-// resize
+// === RESIZE ===
 window.addEventListener("resize", () => {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
