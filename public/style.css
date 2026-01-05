@@ -36,19 +36,33 @@ body {
 
 #rei-3d-wrapper {
   width: 34vw;
-  min-width: 340px;
+  min-width: 320px;
   height: 100vh;
 
   display: flex;
   align-items: center;
   justify-content: center;
+
+  background: rgba(10, 20, 30, 0.35);   /* полупрозрачный фон */
+  backdrop-filter: blur(18px);         /* стекло */
+  border-right: 1px solid rgba(150,200,255,0.25);
 }
 
+
 #rei-3d {
-  width: 360px;
-  height: 360px;
-  background: red;
+  width: 340px;
+  height: 340px;
+
+  border-radius: 22px;
+
+  background: rgba(255,255,255,0.04); /* лёгкий фон */
+  backdrop-filter: blur(12px);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 0 40px rgba(120,180,255,0.25);
 }
+
 
 /* ===== APP ===== */
 
