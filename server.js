@@ -21,7 +21,7 @@ app.use(express.static("public"));
    MEMORY (PER USER)
 ======================= */
 
-const memoryDir = path.join(process.cwd(), "memory");
+const memoryDir = path.join(__dirname, "memory");
 if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir);
 
 function getMemoryPath(userId) {
