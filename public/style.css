@@ -1,4 +1,4 @@
-:root {
+:root { 
   --bg: #0b1a22;
   --panel: rgba(20, 35, 45, 0.88);
   --border: rgba(150, 200, 220, 0.35);
@@ -18,39 +18,15 @@ html, body {
 }
 
 body {
-  margin: 0;
   height: 100vh;
   background: url("bg.jpg") center / cover no-repeat;
   display: flex;
-  font-family: system-ui, sans-serif;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
-/* 3D СЛЕВА */
-#rei-3d-wrapper {
-  width: 40vw;
-  height: 100vh;
-  pointer-events: none;
-}
-
-#rei-3d {
-  width: 100%;
-  height: 100%;
-}
-
-/* UI СПРАВА */
-.app {
-  width: 420px;
-  margin: auto 40px auto auto;
-  backdrop-filter: blur(20px);
-  background: rgba(10, 20, 30, 0.75);
-  border-radius: 24px;
-  padding: 20px;
-  box-shadow: 0 0 40px rgba(150,200,255,0.15);
-}
-
-
-/* ===== APP ===== */
+/* ===== LAYOUT ===== */
 
 .app {
   width: min(92vw, 420px);
@@ -58,7 +34,7 @@ body {
 
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 20px;
 
   box-shadow:
@@ -92,48 +68,26 @@ body {
 .titles h1 {
   margin: 2px 0 0;
   font-weight: 600;
+  color: white;
 }
 
 .subtitle {
   font-size: 13px;
   opacity: 0.75;
+  color: #cfe9ff;
 }
 
-/* ===== AVATAR (REI) ===== */
+/* ===== AVATAR ===== */
 
 .avatar {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-
   background: url("rei.png") center / cover no-repeat;
   background-color: var(--bg);
 
   box-shadow: 0 0 22px rgba(150,200,255,0.9);
   animation: breathe 4s ease-in-out infinite;
-  transition: all 0.4s ease;
-}
-
-/* отключаем псевдо-глаз */
-.avatar::after {
-  display: none;
-}
-
-/* эмоции через glow */
-.avatar.calm {
-  filter: hue-rotate(0deg);
-}
-
-.avatar.happy {
-  box-shadow: 0 0 26px rgba(180,255,230,1);
-}
-
-.avatar.caring {
-  box-shadow: 0 0 26px rgba(255,210,240,1);
-}
-
-.avatar.jealous {
-  box-shadow: 0 0 28px rgba(255,120,120,1);
 }
 
 /* ===== CHAT ===== */
@@ -142,7 +96,7 @@ body {
   flex: 1;
   background: rgba(0,0,0,0.35);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 12px;
   overflow-y: auto;
   margin-bottom: 12px;
@@ -157,23 +111,26 @@ body {
   border-radius: 14px;
 
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.45;
 
   opacity: 0;
   transform: translateY(10px);
   animation: messageIn 0.35s ease forwards;
+
+  color: white; /* 🔥 ГЛАВНОЕ: ТЕКСТ БЕЛЫЙ */
 }
 
-.rei {
+.message.rei {
   background: rgba(170,220,255,0.15);
   border: 1px solid rgba(170,220,255,0.35);
   color: var(--rei);
 }
 
-.user {
+.message.user {
   margin-left: auto;
   background: rgba(255,255,255,0.15);
   border: 1px solid rgba(255,255,255,0.25);
+  color: var(--user);
 }
 
 .time {
@@ -181,6 +138,7 @@ body {
   opacity: 0.6;
   margin-top: 4px;
   text-align: right;
+  color: #cfe9ff;
 }
 
 /* ===== INPUT ===== */
@@ -196,9 +154,13 @@ input {
   padding: 12px 14px;
   border-radius: 12px;
   border: none;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.45);
   color: white;
   outline: none;
+}
+
+input::placeholder {
+  color: rgba(255,255,255,0.5);
 }
 
 button {
@@ -219,6 +181,7 @@ button {
   text-align: center;
   font-size: 11px;
   opacity: 0.6;
+  color: #cfe9ff;
 }
 
 /* ===== ANIMATIONS ===== */
@@ -253,21 +216,17 @@ button {
   50% { opacity: 0.4; }
 }
 
-#rei-3d {
-  width: 100%;
-  height: 240px;
-  margin: 12px;
-  border-radius: 20px;
-  background: rgba(255,255,255,.04);
-  backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.05),
-    0 0 30px rgba(120,180,255,.15);
+#rei-3d-wrapper {
+  width: 34vw;
+  min-width: 320px;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-#rei-3d {
+#rei-canvas {
   width: 100%;
   height: 100%;
   display: block;
-  border-radius: 50%;
 }
