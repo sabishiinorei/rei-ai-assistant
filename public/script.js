@@ -1,3 +1,6 @@
+// ===============================
+// CHAT
+// ===============================
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("send");
@@ -5,14 +8,12 @@ const avatar = document.getElementById("avatar");
 
 const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
 
-// ID пользователя
 let userId = localStorage.getItem("rei_user_id");
 if (!userId) {
   userId = crypto.randomUUID();
   localStorage.setItem("rei_user_id", userId);
 }
 
-// время
 function getTime() {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -20,15 +21,14 @@ function getTime() {
   });
 }
 
-// эмоции аватара
 function setEmotion(type) {
   avatar.className = "avatar " + type;
 }
 
-// сообщение
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
+  div.style.animation = "fadeIn 0.25s ease";
 
   div.innerHTML = `
     <div class="text">${text}</div>
@@ -40,12 +40,10 @@ function addMessage(text, type) {
   return div;
 }
 
-// чат
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // реакции
   if (/люблю|милая|спасибо|классная/i.test(text)) {
     setEmotion("happy");
   } else if (/плохо|грусть|тяжело/i.test(text)) {
@@ -72,41 +70,61 @@ async function sendMessage() {
     thinking.querySelector(".text").textContent = data.reply || "…";
 
     setTimeout(() => setEmotion("calm"), 3000);
-
   } catch (e) {
     thinking.querySelector(".text").textContent = "Связь потеряна…";
     setEmotion("caring");
   }
 }
 
-// события
 button.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
 
-// === LOAD REI MODEL ===
+// ===============================
+// 3D REI
+// ===============================
+const container = document.getElementById("rei-3d");
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  35,
+  container.clientWidth / 300,
+  0.1,
+  100
+);
+camera.position.set(0, 1.4, 2.2);
+
+const renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true
+});
+renderer.setSize(container.clientWidth, 300);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+const light = new THREE.HemisphereLight(0xffffff, 0x223355, 1.4);
+scene.add(light);
+
 const loader = new THREE.GLTFLoader();
+let reiModel = null;
 
 loader.load(
   "/models/rei.glb",
   (gltf) => {
-    const model = gltf.scene;
-    model.scale.set(1.2, 1.2, 1.2);
-    model.position.y = -1;
-    scene.add(model);
-
-    // лёгкий idle
-    function animate() {
-      requestAnimationFrame(animate);
-      model.rotation.y += 0.002;
-      renderer.render(scene, camera);
-    }
-    animate();
+    reiModel = gltf.scene;
+    reiModel.scale.set(1.1, 1.1, 1.1);
+    reiModel.position.set(0, -1.25, 0);
+    scene.add(reiModel);
   },
   undefined,
-  (err) => {
-    console.error("Model load error:", err);
-  }
+  (err) => console.error("Model load error:", err)
 );
 
+function animate() {
+  requestAnimationFrame(animate);
+  if (reiModel) reiModel.rotation.y += 0.002;
+  renderer.render(scene, camera);
+}
+animate();
