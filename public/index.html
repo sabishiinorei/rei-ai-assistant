@@ -24,7 +24,7 @@
 
   <div class="chat" id="chat">
     <div class="message rei">
-      <div class="text">Привет Сенпай, чем помочь?</div>
+      <div class="text">Привет, сенпай. Я здесь.</div>
       <div class="time">—</div>
     </div>
   </div>
@@ -37,6 +37,17 @@
   <div class="footer">EVA-inspired UI · Rei v0.2</div>
 </div>
 
+<!-- THREE.js (под 3D, дальше будем использовать) -->
+<script type="module">
+  import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+  import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+
+  window.THREE = THREE;
+  window.GLTFLoader = GLTFLoader;
+</script>
+
+<!-- основной скрипт -->
 <script src="script.js"></script>
+
 </body>
 </html>

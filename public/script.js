@@ -20,7 +20,7 @@ function getTime() {
   });
 }
 
-// эмоции
+// эмоции аватара
 function setEmotion(type) {
   if (!avatar) return;
   avatar.className = "avatar " + type;
@@ -47,11 +47,11 @@ async function sendMessage() {
   if (!text) return;
 
   // реакция на пользователя
-  if (text.match(/люблю|милая|спасибо|классная/i)) {
+  if (/люблю|милая|спасибо|классная/i.test(text)) {
     setEmotion("happy");
-  } else if (text.match(/плохо|грусть|тяжело/i)) {
+  } else if (/плохо|грусть|тяжело/i.test(text)) {
     setEmotion("caring");
-  } else if (text.match(/моя|ревную|только ты/i)) {
+  } else if (/моя|ревную|только ты/i.test(text)) {
     setEmotion("jealous");
   } else {
     setEmotion("calm");
@@ -69,17 +69,21 @@ async function sendMessage() {
       body: JSON.stringify({ message: text, userId })
     });
 
+    if (!res.ok) throw new Error("Network");
+
     const data = await res.json();
-    thinking.querySelector(".text").textContent = data.reply || "...";
+    thinking.querySelector(".text").textContent = data.reply || "…";
 
     setTimeout(() => setEmotion("calm"), 4000);
 
-  } catch {
-    thinking.querySelector(".text").textContent = "Связь потеряна...";
+  } catch (e) {
+    thinking.querySelector(".text").textContent = "Связь потеряна…";
     setEmotion("caring");
+    console.error(e);
   }
 }
 
+// события
 button.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
