@@ -62,27 +62,29 @@ input.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
 const container = document.getElementById("rei-3d");
 
 const scene = new THREE.Scene();
-scene.background = null;
 
 const camera = new THREE.PerspectiveCamera(
   35,
-  container.clientWidth / 240,
+  container.clientWidth / container.clientHeight,
   0.1,
   100
 );
-camera.position.set(0, 1.4, 2.2);
+camera.position.set(0, 1.45, 2.4);
 
-const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-renderer.setSize(container.clientWidth, 240);
+const renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true
+});
+renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
 // свет
 scene.add(new THREE.AmbientLight(0xffffff, 1.1));
 
-const dir = new THREE.DirectionalLight(0xaadfff, 1.3);
-dir.position.set(2, 3, 2);
-scene.add(dir);
+const keyLight = new THREE.DirectionalLight(0xbfdfff, 1.4);
+keyLight.position.set(2, 4, 2);
+scene.add(keyLight);
 
 // загрузка модели
 const loader = new THREE.GLTFLoader();
@@ -90,17 +92,24 @@ loader.load(
   "/models/rei.glb",
   (gltf) => {
     const model = gltf.scene;
-    model.scale.set(1.1, 1.1, 1.1);
-    model.position.y = -1;
+    model.scale.set(1.15, 1.15, 1.15);
+    model.position.set(0, -1.1, 0);
     scene.add(model);
 
     function animate() {
       requestAnimationFrame(animate);
-      model.rotation.y += 0.002;
+      model.rotation.y += 0.0015;
       renderer.render(scene, camera);
     }
     animate();
   },
   undefined,
-  (err) => console.error("GLB load error", err)
+  (err) => console.error("GLB load error:", err)
 );
+
+// resize
+window.addEventListener("resize", () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
