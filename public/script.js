@@ -1,12 +1,4 @@
-// ===============================
-// IMPORTS (ОБЯЗАТЕЛЬНО)
-// ===============================
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/GLTFLoader.js";
-
-// ===============================
-// CHAT
-// ===============================
+// ================== CHAT ==================
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("send");
@@ -21,29 +13,17 @@ if (!userId) {
 }
 
 function getTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function setEmotion(type) {
   avatar.className = "avatar " + type;
-
-  if (window.setReiEmotion) {
-    window.setReiEmotion(type);
-  }
 }
 
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
-
-  div.innerHTML = `
-    <div class="text">${text}</div>
-    <div class="time">${getTime()}</div>
-  `;
-
+  div.innerHTML = `<div class="text">${text}</div><div class="time">${getTime()}</div>`;
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   return div;
@@ -53,16 +33,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  if (/люблю|милая|спасибо|классная/i.test(text)) {
-    setEmotion("happy");
-  } else if (/плохо|грусть|тяжело/i.test(text)) {
-    setEmotion("caring");
-  } else if (/моя|ревную|только ты/i.test(text)) {
-    setEmotion("jealous");
-  } else {
-    setEmotion("calm");
-  }
-
+  setEmotion("calm");
   addMessage(text, "user");
   input.value = "";
 
@@ -77,8 +48,6 @@ async function sendMessage() {
 
     const data = await res.json();
     thinking.querySelector(".text").textContent = data.reply || "…";
-
-    setTimeout(() => setEmotion("calm"), 3000);
   } catch {
     thinking.querySelector(".text").textContent = "Связь потеряна…";
     setEmotion("caring");
@@ -86,75 +55,52 @@ async function sendMessage() {
 }
 
 button.addEventListener("click", sendMessage);
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
-});
+input.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
 
-// ===============================
-// 3D REI
-// ===============================
-const canvas = document.getElementById("rei-3d");
+
+// ================== THREE.JS ==================
+const container = document.getElementById("rei-3d");
 
 const scene = new THREE.Scene();
+scene.background = null;
 
-const width = canvas.clientWidth || 52;
-const height = canvas.clientHeight || 52;
-
-const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 10);
+const camera = new THREE.PerspectiveCamera(
+  35,
+  container.clientWidth / 240,
+  0.1,
+  100
+);
 camera.position.set(0, 1.4, 2.2);
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  alpha: true,
-  antialias: true
-});
-renderer.setSize(width, height, false);
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(container.clientWidth, 240);
 renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
 
-// СВЕТ (КРИТИЧНО)
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+// свет
+scene.add(new THREE.AmbientLight(0xffffff, 1.1));
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(1, 2, 2);
-scene.add(light);
+const dir = new THREE.DirectionalLight(0xaadfff, 1.3);
+dir.position.set(2, 3, 2);
+scene.add(dir);
 
-const loader = new GLTFLoader();
-let reiModel = null;
-
+// загрузка модели
+const loader = new THREE.GLTFLoader();
 loader.load(
   "/models/rei.glb",
   (gltf) => {
-    reiModel = gltf.scene;
-    reiModel.position.set(0, 0, 0);
-    reiModel.scale.set(1, 1, 1);
-    scene.add(reiModel);
+    const model = gltf.scene;
+    model.scale.set(1.1, 1.1, 1.1);
+    model.position.y = -1;
+    scene.add(model);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      model.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+    animate();
   },
   undefined,
-  (err) => console.error("GLB LOAD ERROR:", err)
+  (err) => console.error("GLB load error", err)
 );
-
-// эмоции → движения
-window.setReiEmotion = (emotion) => {
-  if (!reiModel) return;
-
-  switch (emotion) {
-    case "happy":
-      reiModel.rotation.y = 0.15;
-      break;
-    case "caring":
-      reiModel.rotation.x = -0.1;
-      break;
-    case "jealous":
-      reiModel.rotation.y = -0.2;
-      break;
-    default:
-      reiModel.rotation.set(0, 0, 0);
-  }
-};
-
-function animate() {
-  requestAnimationFrame(animate);
-  if (reiModel) reiModel.rotation.y += 0.002;
-  renderer.render(scene, camera);
-}
-animate();
