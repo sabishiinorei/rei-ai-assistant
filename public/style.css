@@ -21,16 +21,41 @@ body {
   height: 100vh;
   background: url("bg.jpg") center / cover no-repeat;
   display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
 }
 
 /* ===== LAYOUT ===== */
 
+.layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== 3D LEFT ===== */
+
+#rei-3d-wrapper {
+  width: 34vw;
+  min-width: 340px;
+  height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#rei-3d {
+  width: 360px;
+  height: 360px;
+  background: red;
+}
+
+/* ===== APP ===== */
+
 .app {
   width: min(92vw, 420px);
   height: 90vh;
+  margin: auto 40px;
 
   background: var(--panel);
   border: 1px solid var(--border);
@@ -117,7 +142,7 @@ body {
   transform: translateY(10px);
   animation: messageIn 0.35s ease forwards;
 
-  color: white; /* 🔥 ГЛАВНОЕ: ТЕКСТ БЕЛЫЙ */
+  color: white;
 }
 
 .message.rei {
@@ -214,19 +239,4 @@ button {
 @keyframes blink {
   0%,100% { opacity: 1; }
   50% { opacity: 0.4; }
-}
-
-#rei-3d-wrapper {
-  width: 34vw;
-  min-width: 320px;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#rei-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
 }

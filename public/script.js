@@ -37,7 +37,7 @@ scene.add(dirLight);
 const loader = new GLTFLoader();
 
 loader.load(
-  "/models/rei.glb",
+  "./rei.glb",
   (gltf) => {
     const model = gltf.scene;
 
