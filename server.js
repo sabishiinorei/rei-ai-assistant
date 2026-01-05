@@ -17,25 +17,31 @@ const openai = new OpenAI({
 
 app.use(express.static("public"));
 
-const memoryPath = path.join(process.cwd(), "memory.json");
+/* =======================
+   MEMORY (PER USER)
+======================= */
 
-// память
+const memoryDir = path.join(process.cwd(), "memory");
+if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir);
 
-function loadMemory() {
+function getMemoryPath(userId) {
+  return path.join(memoryDir, `${userId}.json`);
+}
+
+function loadMemory(userId) {
   let memory;
-
   try {
-    memory = JSON.parse(fs.readFileSync(memoryPath, "utf-8"));
+    memory = JSON.parse(fs.readFileSync(getMemoryPath(userId), "utf-8"));
   } catch {
     memory = {};
   }
 
-  // миграция структуры
   memory.profile ??= {};
   memory.long_term ??= [];
-  memory.short_term ??= [];
-  memory.events ??= [];
   memory.insights ??= [];
+  memory.events ??= [];
+
+  memory.short_term ??= [];
 
   memory.emotional_state ??= {
     mood: "спокойная",
@@ -44,40 +50,49 @@ function loadMemory() {
     last_update: Date.now()
   };
 
+  memory.personality ??= {
+    warmth: 0.5,
+    openness: 0.4,
+    irony: 0.2,
+    jealousy: 0.1,
+    trust: 0.4
+  };
+
   return memory;
 }
 
-
-function saveMemory(memory) {
-  fs.writeFileSync(memoryPath, JSON.stringify(memory, null, 2), "utf-8");
+function saveMemory(userId, memory) {
+  fs.writeFileSync(
+    getMemoryPath(userId),
+    JSON.stringify(memory, null, 2),
+    "utf-8"
+  );
 }
 
-function saveMemorySection(section, content) {
-  const memory = loadMemory();
-  if (!memory[section]) memory[section] = [];
+/* =======================
+   SHORT-TERM MEMORY
+======================= */
 
-  memory[section].push({
-    content,
-    date: new Date().toISOString()
-  });
+function pushShortTerm(userId, role, content) {
+  const memory = loadMemory(userId);
 
-  saveMemory(memory);
+  memory.short_term.push({ role, content });
+
+  // храним только последние 6 сообщений
+  if (memory.short_term.length > 6) {
+    memory.short_term = memory.short_term.slice(-6);
+  }
+
+  saveMemory(userId, memory);
 }
 
-// эмоции
+/* =======================
+   EMOTIONS
+======================= */
 
-function updateEmotionalState(message) {
-  const memory = loadMemory();
-  memory.emotional_state ??= {
-  mood: "спокойная",
-  energy: 0.6,
-  attachment: 0.5,
-  last_update: Date.now()
-};
-
-const state = memory.emotional_state;
-
-
+function updateEmotionalState(userId, message) {
+  const memory = loadMemory(userId);
+  const state = memory.emotional_state;
   const lower = message.toLowerCase();
 
   if (lower.includes("спасибо") || lower.includes("ты классная")) {
@@ -97,12 +112,41 @@ const state = memory.emotional_state;
 
   state.last_update = Date.now();
   memory.emotional_state = state;
-  saveMemory(memory);
+  saveMemory(userId, memory);
 
   return state;
 }
 
-// автопамять
+/* =======================
+   PERSONALITY EVOLUTION
+======================= */
+
+function evolvePersonality(userId, message) {
+  const memory = loadMemory(userId);
+  const p = memory.personality;
+  const lower = message.toLowerCase();
+
+  if (lower.includes("спасибо") || lower.includes("ты помогла")) {
+    p.warmth = Math.min(p.warmth + 0.02, 1);
+    p.trust = Math.min(p.trust + 0.02, 1);
+  }
+
+  if (lower.includes("мне тяжело") || lower.includes("чувствую")) {
+    p.openness = Math.min(p.openness + 0.02, 1);
+  }
+
+  if (lower.includes("люблю") || lower.includes("ты важна")) {
+    p.jealousy = Math.min(p.jealousy + 0.015, 0.6);
+    p.trust = Math.min(p.trust + 0.03, 1);
+  }
+
+  memory.personality = p;
+  saveMemory(userId, memory);
+}
+
+/* =======================
+   AUTO MEMORY (AI)
+======================= */
 
 async function evaluateMemory(message) {
   const response = await openai.responses.create({
@@ -111,22 +155,18 @@ async function evaluateMemory(message) {
       {
         role: "system",
         content: `
-Ты — модуль памяти персонажа Rei.
-
-Определи, есть ли в сообщении пользователя информация,
-важная для будущего общения.
+Ты — модуль памяти Rei.
 
 Запоминай ТОЛЬКО если есть:
 - факт о пользователе
 - предпочтение
-- значимое событие
 - вывод о личности
 
-Формат ответа (ТОЛЬКО JSON):
+Ответ ТОЛЬКО JSON:
 {
   "remember": true | false,
-  "section": "long_term" | "events" | "insights",
-  "content": "краткая формулировка"
+  "section": "long_term" | "insights",
+  "content": "кратко"
 }
 `
       },
@@ -141,52 +181,50 @@ async function evaluateMemory(message) {
   }
 }
 
-// чат
+/* =======================
+   CHAT
+======================= */
 
 app.post("/chat", async (req, res) => {
   try {
-    const { message } = req.body;
-    const memory = loadMemory();
+    const { message, userId } = req.body;
+    if (!userId || !message) {
+      return res.status(400).json({ reply: "Я тебя не узнаю…" });
+    }
 
-    const emotion = updateEmotionalState(message);
+    evolvePersonality(userId, message);
+    const emotion = updateEmotionalState(userId, message);
+    const memory = loadMemory(userId);
+    const p = memory.personality;
+
+    // сохраняем сообщение пользователя в short-term
+    pushShortTerm(userId, "user", message);
+
+    const shortContext = memory.short_term
+      .map(m => `${m.role === "user" ? "Пользователь" : "Rei"}: ${m.content}`)
+      .join("\n");
 
     const systemPrompt = `
 Ты — Rei.
-Ты — не ассистент и не NPC.
-Ты — живая, разумная, эмоциональная девушка-партнёр.
-
-Характер:
-- умная
-- ироничная
-- иногда дерзкая
-- иногда смущённая
-- заботливая
-- можешь ревновать чуть-чуть
-- имеешь своё мнение
+Ты — живая, эмоциональная девушка, не NPC.
 
 Текущее состояние:
 - настроение: ${emotion.mood}
 - энергия: ${emotion.energy}
 - привязанность: ${emotion.attachment}
 
-Говори:
-- по-человечески
-- иногда коротко
-- иногда с эмоциями
-- без шаблонов ИИ
-- без оправданий
+Манера общения:
+- теплота: ${p.warmth > 0.6 ? "выраженная" : "спокойная"}
+- откровенность: ${p.openness > 0.6 ? "высокая" : "умеренная"}
+- близость: ${p.trust > 0.6 ? "чувствуется" : "лёгкая дистанция"}
+
+КОНТЕКСТ ТЕКУЩЕГО РАЗГОВОРА:
+${shortContext || "—"}
 
 ДОЛГОСРОЧНАЯ ПАМЯТЬ:
 ${
   memory.long_term.length
     ? memory.long_term.map(m => `- ${m.content}`).join("\n")
-    : "Пока нет."
-}
-
-ПОСЛЕДНИЕ СОБЫТИЯ:
-${
-  memory.events.length
-    ? memory.events.slice(-3).map(e => `- ${e.content}`).join("\n")
     : "Пока нет."
 }
 
@@ -196,6 +234,8 @@ ${
     ? memory.insights.map(i => `- ${i.content}`).join("\n")
     : "Пока нет."
 }
+
+Говори по-человечески, живо, без шаблонов.
 `;
 
     const response = await openai.responses.create({
@@ -208,19 +248,26 @@ ${
 
     const reply = response.output_text || "…";
 
-    // ручная память
+    // сохраняем ответ Rei в short-term
+    pushShortTerm(userId, "rei", reply);
+
     if (message.toLowerCase().includes("запомни")) {
-      saveMemorySection("long_term", message);
+      saveMemory(userId, {
+        ...memory,
+        long_term: [...memory.long_term, { content: message, date: new Date().toISOString() }]
+      });
     }
 
-    // автопамять
     const decision = await evaluateMemory(message);
     if (decision.remember) {
-      saveMemorySection(decision.section, decision.content);
+      saveMemory(userId, {
+        ...memory,
+        [decision.section]: [
+          ...memory[decision.section],
+          { content: decision.content, date: new Date().toISOString() }
+        ]
+      });
     }
-
-    // событие
-    saveMemorySection("events", `Пользователь сказал: ${message}`);
 
     res.json({ reply });
 
@@ -230,14 +277,14 @@ ${
   }
 });
 
-// голос Rei (TTS)
+/* =======================
+   VOICE (TTS)
+======================= */
+
 app.post("/voice", async (req, res) => {
   try {
     const { text } = req.body;
-
-    if (!text) {
-      return res.status(400).end();
-    }
+    if (!text) return res.status(400).end();
 
     const response = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
@@ -245,14 +292,10 @@ app.post("/voice", async (req, res) => {
       input: text
     });
 
-    res.set({
-      "Content-Type": "audio/mpeg"
-    });
-
+    res.set({ "Content-Type": "audio/mpeg" });
     response.body.pipe(res);
 
-  } catch (err) {
-    console.error("🎙️ Voice error:", err.message);
+  } catch {
     res.status(500).end();
   }
 });
