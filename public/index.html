@@ -3,30 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rei AI Assistant</title>
+  <title>Rei</title>
+
   <link rel="stylesheet" href="style.css" />
   <link rel="shortcut icon" href="logo.png" type="image/x-icon">
 </head>
 <body>
 
 <div class="app">
-  <div class="status">online</div>
 
-  <h1>Rei AI Assistant</h1>
-  <div class="subtitle">EVA AI Interface</div>
+  <div class="header">
+    <div id="avatar" class="avatar calm"></div>
+
+    <div class="titles">
+      <div class="status">online</div>
+      <h1>Rei</h1>
+      <div class="subtitle">EVA AI Interface</div>
+    </div>
+  </div>
 
   <div class="chat" id="chat">
     <div class="message rei">
-      Привет сенпай, чем помочь?
+      <div class="text">Привет Сенпай, чем помочь?</div>
+      <div class="time">—</div>
     </div>
   </div>
 
   <div class="input-area">
     <input id="input" placeholder="Написать Рей…" />
-    <button id="send">Отправить</button>
+    <button id="send">➤</button>
   </div>
 
-  <div class="footer">EVA-inspired UI · v0.1</div>
+  <div class="footer">EVA-inspired UI · Rei v0.2</div>
 </div>
 
 <script src="script.js"></script>
