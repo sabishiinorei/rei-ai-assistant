@@ -141,6 +141,13 @@ body::before {
   pointer-events: none;
 }
 
+#rei-3d-container {
+  width: 300px;
+height: 400px;
+background: transparent;
+pointer-events: none;
+}
+
 
 /* ===== MESSAGES ===== */
 
