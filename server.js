@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
+const path = require("path");
 const db = require("./db");
 
 dotenv.config();
@@ -9,10 +10,22 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+
+// 🔥 ЯВНО указываем public
+const PUBLIC_DIR = path.join(__dirname, "public");
+app.use(express.static(PUBLIC_DIR));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
+});
+
+/* =======================
+   ROOT (ВАЖНО)
+======================= */
+
+// ❗️ГАРАНТИРУЕМ, что грузится ТОЛЬКО public/index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
 /* =======================
@@ -221,12 +234,10 @@ app.post("/chat", async (req, res) => {
     }
 
     const memory = loadMemory(userId);
-
     const emotion = updateEmotionalState(memory, message);
     const personality = evolvePersonality(memory, message);
 
     saveState(userId, emotion, personality);
-
     pushShortTerm(userId, "user", message);
 
     const shortContext = memory.short_term
