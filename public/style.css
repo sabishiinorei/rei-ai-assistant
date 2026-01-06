@@ -97,12 +97,10 @@ body::before {
   transition: all 0.4s ease;
 }
 
-/* отключаем псевдо-глаз */
 .avatar::after {
   display: none;
 }
 
-/* эмоции через glow */
 .avatar.calm {
   filter: hue-rotate(0deg);
 }
@@ -131,23 +129,22 @@ body::before {
   margin-bottom: 12px;
 }
 
-#rei-3d {
-  position: absolute;
-  right: 40px;
-  bottom: 40px;
-  width: 400px;
-  height: 600px;
-  z-index: 2;
-  pointer-events: none;
-}
+/* ===== 3D REI CONTAINER ===== */
 
 #rei-3d-container {
-  width: 300px;
-height: 400px;
-background: transparent;
-pointer-events: none;
-}
+  position: fixed;
 
+  right: 40px;
+  bottom: 80px;
+
+  width: 360px;
+  height: 520px;
+
+  pointer-events: none;
+  z-index: 1;
+
+  background: transparent;
+}
 
 /* ===== MESSAGES ===== */
 
