@@ -88,3 +88,43 @@ button.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
+
+const container3D = document.getElementById("rei-3d-container");
+if (container3D) {
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(
+    45,
+    container3D.clientWidth / container3D.clientHeight,
+    0.1,
+    100
+  );
+  camera.position.z = 3;
+
+  const renderer = new THREE.WebGLRenderer({
+    alpha: true,
+    antialias: true
+  });
+
+  renderer.setSize(
+    container3D.clientWidth,
+    container3D.clientHeight
+  );
+  renderer.setPixelRatio(window.devicePixelRatio);
+
+  container3D.appendChild(renderer.domElement);
+
+  const geometry = new THREE.BoxGeometry();
+  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const cube = new THREE.Mesh(geometry, material);
+
+  scene.add(cube);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    cube.rotation.y += 0.01;
+    renderer.render(scene, camera);
+  }
+
+  animate();
+}
