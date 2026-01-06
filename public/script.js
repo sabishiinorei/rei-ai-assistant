@@ -114,11 +114,11 @@ if (container3D) {
 
   container3D.appendChild(renderer.domElement);
 
-  const geometry = new THREE.BoxGeometry();
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const cube = new THREE.Mesh(geometry, material);
+  // const geometry = new THREE.BoxGeometry();
+  // const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  // const cube = new THREE.Mesh(geometry, material);
 
-  scene.add(cube);
+  // scene.add(cube);
 
   function animate() {
     requestAnimationFrame(animate);
@@ -128,3 +128,27 @@ if (container3D) {
 
   animate();
 }
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(2, 4, 3);
+scene.add(light);
+
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  "/models/rei.glb",
+  (gltf) => {
+    const model = gltf.scene;
+
+    model.position.set(0, -1.2, 0);
+    model.scale.set(1, 1, 1);
+
+    scene.add(model);
+  },
+  undefined,
+  (error) => {
+    console.error("GLB load error:", error);
+  }
+);
