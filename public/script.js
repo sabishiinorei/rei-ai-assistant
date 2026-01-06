@@ -1,60 +1,90 @@
-import * as THREE from "https://unpkg.com/three@0.159.0/build/three.module.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js";
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const button = document.getElementById("send");
+const avatar = document.getElementById("avatar");
 
-const container = document.getElementById("rei-3d-container");
-if (!container) {
-  throw new Error("rei-3d-container not found");
+const API_URL = "http://localhost:1488/chat";
+
+// ID пользователя
+let userId = localStorage.getItem("rei_user_id");
+
+if (!userId) {
+  userId = crypto.randomUUID();
+  localStorage.setItem("rei_user_id", userId);
 }
 
-// ===== SCENE =====
-const scene = new THREE.Scene();
+console.log("FRONT USER ID:", userId);
 
-// ===== CAMERA =====
-const camera = new THREE.PerspectiveCamera(
-  45,
-  container.clientWidth / container.clientHeight,
-  0.1,
-  100
-);
-camera.position.set(0, 1.4, 3);
 
-// ===== RENDERER =====
-const renderer = new THREE.WebGLRenderer({
-  alpha: true,
-  antialias: true
-});
-renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-container.appendChild(renderer.domElement);
+// время
+function getTime() {
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
 
-// ===== LIGHT =====
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+// эмоции
+function setEmotion(type) {
+  if (!avatar) return;
+  avatar.className = "avatar " + type;
+}
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(2, 4, 3);
-scene.add(dirLight);
+// сообщение
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "message " + type;
 
-// ===== MODEL =====
-const loader = new GLTFLoader();
+  div.innerHTML = `
+    <div class="text">${text}</div>
+    <div class="time">${getTime()}</div>
+  `;
 
-loader.load(
-  "/models/rei.glb",
-  (gltf) => {
-    const model = gltf.scene;
-    model.position.set(0, -1.2, 0);
-    model.scale.set(1.1, 1.1, 1.1);
-    scene.add(model);
-    console.log("Rei загружена");
-  },
-  undefined,
-  (err) => {
-    console.error("GLB error:", err);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// чат
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  // реакция на пользователя
+  if (text.match(/люблю|милая|спасибо|классная/i)) {
+    setEmotion("happy");
+  } else if (text.match(/плохо|грусть|тяжело/i)) {
+    setEmotion("caring");
+  } else if (text.match(/моя|ревную|только ты/i)) {
+    setEmotion("jealous");
+  } else {
+    setEmotion("calm");
   }
-);
 
-// ===== LOOP =====
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
+  addMessage(text, "user");
+  input.value = "";
+
+  const thinking = addMessage("Рей думает...", "rei");
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, userId })
+    });
+
+    const data = await res.json();
+    thinking.querySelector(".text").textContent = data.reply || "...";
+
+    setTimeout(() => setEmotion("calm"), 4000);
+
+  } catch {
+    thinking.querySelector(".text").textContent = "Связь потеряна...";
+    setEmotion("caring");
+  }
 }
-animate();
+
+button.addEventListener("click", sendMessage);
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
