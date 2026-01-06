@@ -6,7 +6,7 @@
   <title>Rei</title>
 
   <link rel="stylesheet" href="style.css" />
-  <link rel="shortcut icon" href="logo.png" type="image/x-icon">
+  <link rel="shortcut icon" href="logo.png">
 </head>
 <body>
 
@@ -21,6 +21,9 @@
       <div class="subtitle">EVA AI Interface</div>
     </div>
   </div>
+
+  <!-- 3D -->
+  <div id="rei-3d-container"></div>
 
   <div class="chat" id="chat">
     <div class="message rei">
@@ -37,14 +40,6 @@
   <div class="footer">EVA-inspired UI · Rei v0.2</div>
 </div>
 
-<!-- THREE (СТАРАЯ СТАБИЛЬНАЯ ВЕРСИЯ) -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/loaders/GLTFLoader.js"></script>
-
-<script src="script.js"></script>
-
-<!-- ТОЛЬКО UI -->
-<script src="script.js"></script>
-
+<script type="module" src="script.js"></script>
 </body>
 </html>
