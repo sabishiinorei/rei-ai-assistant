@@ -131,6 +131,17 @@ body::before {
   margin-bottom: 12px;
 }
 
+#rei-3d {
+  position: absolute;
+  right: 40px;
+  bottom: 40px;
+  width: 400px;
+  height: 600px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+
 /* ===== MESSAGES ===== */
 
 .message {
