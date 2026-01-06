@@ -14,16 +14,16 @@ renderer.setSize(400, 600);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-// === CONTAINER ===
+// === DOM ===
 const container = document.getElementById("rei-3d");
 container.appendChild(renderer.domElement);
 
 // === LIGHT ===
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-const light = new THREE.DirectionalLight(0xffffff, 1.2);
-light.position.set(2, 5, 3);
-scene.add(light);
+const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+dir.position.set(2, 5, 3);
+scene.add(dir);
 
 // === MODEL ===
 const loader = new GLTFLoader();
@@ -33,11 +33,12 @@ loader.load(
   "/models/rei.glb",
   (gltf) => {
     rei = gltf.scene;
+    rei.scale.set(1, 1, 1);
     rei.position.set(0, -1.1, 0);
     scene.add(rei);
   },
   undefined,
-  (err) => console.error("GLB error:", err)
+  (e) => console.error(e)
 );
 
 // === LOOP ===
