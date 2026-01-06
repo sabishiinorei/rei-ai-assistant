@@ -2,96 +2,140 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const OpenAI = require("openai");
-const fs = require("fs");
-const path = require("path");
+const db = require("./db");
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-app.use(express.static("public"));
-
 /* =======================
-   MEMORY (PER USER)
+   MEMORY LOAD
 ======================= */
 
-const memoryDir = path.join(__dirname, "memory");
-if (!fs.existsSync(memoryDir)) fs.mkdirSync(memoryDir);
-
-function getMemoryPath(userId) {
-  return path.join(memoryDir, `${userId}.json`);
-}
-
 function loadMemory(userId) {
-  let memory;
-  try {
-    memory = JSON.parse(fs.readFileSync(getMemoryPath(userId), "utf-8"));
-  } catch {
-    memory = {};
+  db.prepare(`
+    INSERT OR IGNORE INTO users (user_id, created_at)
+    VALUES (?, ?)
+  `).run(userId, new Date().toISOString());
+
+  const memories = db.prepare(`
+    SELECT type, content FROM memory WHERE user_id = ?
+  `).all(userId);
+
+  const stateRow = db.prepare(`
+    SELECT * FROM state WHERE user_id = ?
+  `).get(userId);
+
+  const short = db.prepare(`
+    SELECT role, content FROM short_term
+    WHERE user_id = ?
+    ORDER BY id DESC
+    LIMIT 6
+  `).all(userId).reverse();
+
+  const memory = {
+    long_term: [],
+    insights: [],
+    short_term: short,
+    emotional_state: {
+      mood: "спокойная",
+      energy: 0.6,
+      attachment: 0.5
+    },
+    personality: {
+      warmth: 0.5,
+      openness: 0.4,
+      irony: 0.2,
+      jealousy: 0.1,
+      trust: 0.4
+    }
+  };
+
+  memories.forEach(m => {
+    if (m.type === "long_term") memory.long_term.push({ content: m.content });
+    if (m.type === "insight") memory.insights.push({ content: m.content });
+  });
+
+  if (stateRow) {
+    memory.emotional_state = {
+      mood: stateRow.mood,
+      energy: stateRow.energy,
+      attachment: stateRow.attachment
+    };
+    memory.personality = JSON.parse(stateRow.personality);
   }
-
-  memory.profile ??= {};
-  memory.long_term ??= [];
-  memory.insights ??= [];
-  memory.events ??= [];
-
-  memory.short_term ??= [];
-
-  memory.emotional_state ??= {
-    mood: "спокойная",
-    energy: 0.6,
-    attachment: 0.5,
-    last_update: Date.now()
-  };
-
-  memory.personality ??= {
-    warmth: 0.5,
-    openness: 0.4,
-    irony: 0.2,
-    jealousy: 0.1,
-    trust: 0.4
-  };
 
   return memory;
 }
 
-function saveMemory(userId, memory) {
-  fs.writeFileSync(
-    getMemoryPath(userId),
-    JSON.stringify(memory, null, 2),
-    "utf-8"
-  );
+/* =======================
+   SAVE MEMORY
+======================= */
+
+function saveMemory(userId, type, content) {
+  db.prepare(`
+    INSERT INTO memory (user_id, type, content, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(userId, type, content, new Date().toISOString());
 }
 
 /* =======================
-   SHORT-TERM MEMORY
+   SHORT-TERM
 ======================= */
 
 function pushShortTerm(userId, role, content) {
-  const memory = loadMemory(userId);
+  db.prepare(`
+    INSERT INTO short_term (user_id, role, content, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(userId, role, content, new Date().toISOString());
 
-  memory.short_term.push({ role, content });
+  db.prepare(`
+    DELETE FROM short_term
+    WHERE id NOT IN (
+      SELECT id FROM short_term
+      WHERE user_id = ?
+      ORDER BY id DESC
+      LIMIT 6
+    ) AND user_id = ?
+  `).run(userId, userId);
+}
 
-  // храним только последние 6 сообщений
-  if (memory.short_term.length > 6) {
-    memory.short_term = memory.short_term.slice(-6);
-  }
+/* =======================
+   STATE SAVE
+======================= */
 
-  saveMemory(userId, memory);
+function saveState(userId, emotion, personality) {
+  db.prepare(`
+    INSERT INTO state (user_id, mood, energy, attachment, personality, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      mood = excluded.mood,
+      energy = excluded.energy,
+      attachment = excluded.attachment,
+      personality = excluded.personality,
+      updated_at = excluded.updated_at
+  `).run(
+    userId,
+    emotion.mood,
+    emotion.energy,
+    emotion.attachment,
+    JSON.stringify(personality),
+    new Date().toISOString()
+  );
 }
 
 /* =======================
    EMOTIONS
 ======================= */
 
-function updateEmotionalState(userId, message) {
-  const memory = loadMemory(userId);
+function updateEmotionalState(memory, message) {
   const state = memory.emotional_state;
   const lower = message.toLowerCase();
 
@@ -110,10 +154,6 @@ function updateEmotionalState(userId, message) {
     state.attachment = Math.min(state.attachment + 0.1, 1);
   }
 
-  state.last_update = Date.now();
-  memory.emotional_state = state;
-  saveMemory(userId, memory);
-
   return state;
 }
 
@@ -121,8 +161,7 @@ function updateEmotionalState(userId, message) {
    PERSONALITY EVOLUTION
 ======================= */
 
-function evolvePersonality(userId, message) {
-  const memory = loadMemory(userId);
+function evolvePersonality(memory, message) {
   const p = memory.personality;
   const lower = message.toLowerCase();
 
@@ -140,8 +179,7 @@ function evolvePersonality(userId, message) {
     p.trust = Math.min(p.trust + 0.03, 1);
   }
 
-  memory.personality = p;
-  saveMemory(userId, memory);
+  return p;
 }
 
 /* =======================
@@ -156,18 +194,8 @@ async function evaluateMemory(message) {
         role: "system",
         content: `
 Ты — модуль памяти Rei.
-
-Запоминай ТОЛЬКО если есть:
-- факт о пользователе
-- предпочтение
-- вывод о личности
-
-Ответ ТОЛЬКО JSON:
-{
-  "remember": true | false,
-  "section": "long_term" | "insights",
-  "content": "кратко"
-}
+Запоминай только факты, предпочтения или выводы о личности.
+Ответ ТОЛЬКО JSON.
 `
       },
       { role: "user", content: message }
@@ -192,12 +220,13 @@ app.post("/chat", async (req, res) => {
       return res.status(400).json({ reply: "Я тебя не узнаю…" });
     }
 
-    evolvePersonality(userId, message);
-    const emotion = updateEmotionalState(userId, message);
     const memory = loadMemory(userId);
-    const p = memory.personality;
 
-    // сохраняем сообщение пользователя в short-term
+    const emotion = updateEmotionalState(memory, message);
+    const personality = evolvePersonality(memory, message);
+
+    saveState(userId, emotion, personality);
+
     pushShortTerm(userId, "user", message);
 
     const shortContext = memory.short_term
@@ -206,36 +235,17 @@ app.post("/chat", async (req, res) => {
 
     const systemPrompt = `
 Ты — Rei.
-Ты — живая, эмоциональная девушка, не NPC.
+Ты живая, эмоциональная, не NPC.
 
-Текущее состояние:
-- настроение: ${emotion.mood}
-- энергия: ${emotion.energy}
-- привязанность: ${emotion.attachment}
+Настроение: ${emotion.mood}
+Энергия: ${emotion.energy}
+Привязанность: ${emotion.attachment}
 
-Манера общения:
-- теплота: ${p.warmth > 0.6 ? "выраженная" : "спокойная"}
-- откровенность: ${p.openness > 0.6 ? "высокая" : "умеренная"}
-- близость: ${p.trust > 0.6 ? "чувствуется" : "лёгкая дистанция"}
-
-КОНТЕКСТ ТЕКУЩЕГО РАЗГОВОРА:
+Контекст:
 ${shortContext || "—"}
 
-ДОЛГОСРОЧНАЯ ПАМЯТЬ:
-${
-  memory.long_term.length
-    ? memory.long_term.map(m => `- ${m.content}`).join("\n")
-    : "Пока нет."
-}
-
-ВЫВОДЫ:
-${
-  memory.insights.length
-    ? memory.insights.map(i => `- ${i.content}`).join("\n")
-    : "Пока нет."
-}
-
-Говори по-человечески, живо, без шаблонов.
+Память:
+${memory.long_term.map(m => `- ${m.content}`).join("\n") || "—"}
 `;
 
     const response = await openai.responses.create({
@@ -248,57 +258,24 @@ ${
 
     const reply = response.output_text || "…";
 
-    // сохраняем ответ Rei в short-term
     pushShortTerm(userId, "rei", reply);
-
-    if (message.toLowerCase().includes("запомни")) {
-      saveMemory(userId, {
-        ...memory,
-        long_term: [...memory.long_term, { content: message, date: new Date().toISOString() }]
-      });
-    }
 
     const decision = await evaluateMemory(message);
     if (decision.remember) {
-      saveMemory(userId, {
-        ...memory,
-        [decision.section]: [
-          ...memory[decision.section],
-          { content: decision.content, date: new Date().toISOString() }
-        ]
-      });
+      saveMemory(userId, decision.section, decision.content);
     }
 
     res.json({ reply });
 
   } catch (err) {
-    console.error("❌ Error:", err.message);
+    console.error("❌", err.message);
     res.status(500).json({ reply: "Рей зависла… 🖤" });
   }
 });
 
 /* =======================
-   VOICE (TTS)
+   START
 ======================= */
-
-app.post("/voice", async (req, res) => {
-  try {
-    const { text } = req.body;
-    if (!text) return res.status(400).end();
-
-    const response = await openai.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice: "alloy",
-      input: text
-    });
-
-    res.set({ "Content-Type": "audio/mpeg" });
-    response.body.pipe(res);
-
-  } catch {
-    res.status(500).end();
-  }
-});
 
 const PORT = 1488;
 app.listen(PORT, () => {

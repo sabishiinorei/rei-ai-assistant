@@ -3,14 +3,18 @@ const input = document.getElementById("input");
 const button = document.getElementById("send");
 const avatar = document.getElementById("avatar");
 
-const API_URL = "https://rei-ai-assistant-1.onrender.com/chat";
+const API_URL = "http://localhost:1488/chat";
 
 // ID пользователя
 let userId = localStorage.getItem("rei_user_id");
+
 if (!userId) {
   userId = crypto.randomUUID();
   localStorage.setItem("rei_user_id", userId);
 }
+
+console.log("FRONT USER ID:", userId);
+
 
 // время
 function getTime() {
