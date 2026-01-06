@@ -1,90 +1,57 @@
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const button = document.getElementById("send");
-const avatar = document.getElementById("avatar");
+const container3D = document.getElementById("rei-3d-container");
 
-const API_URL = "http://localhost:1488/chat";
-
-// ID пользователя
-let userId = localStorage.getItem("rei_user_id");
-
-if (!userId) {
-  userId = crypto.randomUUID();
-  localStorage.setItem("rei_user_id", userId);
+if (!container3D) {
+  console.error("Нет контейнера 3D");
 }
 
-console.log("FRONT USER ID:", userId);
+// ===== SCENE =====
+const scene = new THREE.Scene();
 
+const camera = new THREE.PerspectiveCamera(
+  45,
+  container3D.clientWidth / container3D.clientHeight,
+  0.1,
+  100
+);
+camera.position.set(0, 1.3, 3);
 
-// время
-function getTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-
-// эмоции
-function setEmotion(type) {
-  if (!avatar) return;
-  avatar.className = "avatar " + type;
-}
-
-// сообщение
-function addMessage(text, type) {
-  const div = document.createElement("div");
-  div.className = "message " + type;
-
-  div.innerHTML = `
-    <div class="text">${text}</div>
-    <div class="time">${getTime()}</div>
-  `;
-
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
-}
-
-// чат
-async function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return;
-
-  // реакция на пользователя
-  if (text.match(/люблю|милая|спасибо|классная/i)) {
-    setEmotion("happy");
-  } else if (text.match(/плохо|грусть|тяжело/i)) {
-    setEmotion("caring");
-  } else if (text.match(/моя|ревную|только ты/i)) {
-    setEmotion("jealous");
-  } else {
-    setEmotion("calm");
-  }
-
-  addMessage(text, "user");
-  input.value = "";
-
-  const thinking = addMessage("Рей думает...", "rei");
-
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, userId })
-    });
-
-    const data = await res.json();
-    thinking.querySelector(".text").textContent = data.reply || "...";
-
-    setTimeout(() => setEmotion("calm"), 4000);
-
-  } catch {
-    thinking.querySelector(".text").textContent = "Связь потеряна...";
-    setEmotion("caring");
-  }
-}
-
-button.addEventListener("click", sendMessage);
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
+// ===== RENDERER =====
+const renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true
 });
+renderer.setSize(container3D.clientWidth, container3D.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container3D.appendChild(renderer.domElement);
+
+// ===== LIGHT =====
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const light = new THREE.DirectionalLight(0xffffff, 0.9);
+light.position.set(2, 4, 3);
+scene.add(light);
+
+// ===== MODEL =====
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  "/models/rei.glb",
+  (gltf) => {
+    const model = gltf.scene;
+    model.position.set(0, -1.2, 0);
+    model.scale.set(1.1, 1.1, 1.1);
+    scene.add(model);
+    console.log("Rei загружена");
+  },
+  undefined,
+  (err) => {
+    console.error("Ошибка загрузки GLB:", err);
+  }
+);
+
+// ===== LOOP =====
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
