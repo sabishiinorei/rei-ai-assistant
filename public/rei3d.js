@@ -1,84 +1,56 @@
-// Проверки
-(function () {
-  console.log('rei3d.js loaded');
+import * as THREE from './libs/three.module.js';
+import { GLTFLoader } from './libs/GLTFLoader.js';
 
-  if (!window.THREE) {
-    console.error('THREE not found');
-    return;
-  }
+console.log('rei3d.js module loaded');
 
-  const container = document.getElementById('rei-3d-container');
-  if (!container) {
-    console.error('rei-3d-container NOT found');
-    return;
-  }
+const container = document.getElementById('rei-3d-container');
+if (!container) {
+  console.error('rei-3d-container NOT found');
+  throw new Error('no container');
+}
 
-  console.log('rei-3d-container found');
+const scene = new THREE.Scene();
 
-// Сцены
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+const camera = new THREE.PerspectiveCamera(
+  35,
+  container.clientWidth / container.clientHeight,
+  0.1,
+  100
+);
+camera.position.set(0, 1.4, 3);
 
-  const camera = new THREE.PerspectiveCamera(
-    35,
-    container.clientWidth / container.clientHeight,
-    0.1,
-    100
-  );
-  camera.position.z = 3;
+const renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true
+});
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
 
-// Рендерер
-  const renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true
-  });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  container.appendChild(renderer.domElement);
+/* свет */
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-// Свет
-  const light = new THREE.DirectionalLight(0xffffff, 1.2);
-light.position.set(1, 2, 3);
-scene.add(light);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(2, 3, 4);
+scene.add(dirLight);
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambient);
-
-  function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-
-// Загружаем модельку Рей
-const loader = new THREE.GLTFLoader();
-
+/* загрузка модели */
+const loader = new GLTFLoader();
 loader.load(
-  '/models/rei.glb',
+  './models/rei.glb',
   (gltf) => {
     const model = gltf.scene;
-
-    // База
-    model.scale.set(1.2, 1.2, 1.2);
-    model.position.set(0, -1.1, 0);
-    model.rotation.y = Math.PI;
-
-    // Фиксы
-    model.traverse((obj) => {
-      if (obj.isMesh && obj.material) {
-        obj.material.transparent = true;
-        obj.material.depthWrite = false;
-        obj.material.needsUpdate = true;
-      }
-    });
-
+    model.scale.set(1, 1, 1);
     scene.add(model);
-    console.log('Rei model loaded');
+    console.log('REI MODEL LOADED');
   },
   undefined,
-  (error) => {
-    console.error('Rei model load error:', error);
-  }
+  (err) => console.error('GLTF ERROR', err)
 );
 
-
-  animate();
-})();
+/* рендер */
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
