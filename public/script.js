@@ -3,7 +3,7 @@ const input = document.getElementById("input");
 const button = document.getElementById("send");
 const avatar = document.getElementById("avatar");
 
-const API_URL = "http://localhost:1488/chat";
+const API_URL = "/chat";
 
 // ID пользователя
 let userId = localStorage.getItem("rei_user_id");

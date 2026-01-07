@@ -5,15 +5,12 @@ console.log('rei3d.js module loaded');
 
 /* контейнер */
 const container = document.getElementById('rei-3d-container');
-if (!container) {
-  console.error('rei-3d-container NOT found');
-  throw new Error('no container');
-}
+if (!container) throw new Error('rei-3d-container NOT found');
 
 /* сцена */
 const scene = new THREE.Scene();
 
-/* камера — СТАБИЛЬНАЯ */
+/* камера */
 const camera = new THREE.PerspectiveCamera(
   45,
   container.clientWidth / container.clientHeight,
@@ -35,39 +32,45 @@ container.appendChild(renderer.domElement);
 
 /* свет */
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
 dirLight.position.set(2, 3, 4);
 scene.add(dirLight);
 
 /* модель */
 let reiModel = null;
-const baseY = -1.2;
+
+/* базовая поза */
+const basePose = {
+  y: -1.22,
+  rotY: 0
+};
+
+/* idle параметры */
+const idle = {
+  breathSpeed: 1.2,
+  breathPower: 0.04,
+  swaySpeed: 0.6,
+  swayPower: 0.12
+};
 
 const loader = new GLTFLoader();
-loader.load(
-  './models/rei.glb',
-  (gltf) => {
-    reiModel = gltf.scene;
+loader.load('./models/rei.glb', (gltf) => {
+  reiModel = gltf.scene;
+  reiModel.scale.set(1.55, 1.55, 1.55);
+  reiModel.position.set(0, basePose.y, 0);
+  scene.add(reiModel);
+  console.log('REI MODEL LOADED');
+});
 
-    reiModel.scale.set(1.45, 1.45, 1.45);
-    reiModel.position.set(0, baseY, 0);
-
-    scene.add(reiModel);
-    console.log('REI MODEL LOADED');
-  },
-  undefined,
-  (err) => console.error('GLTF ERROR', err)
-);
-
+/* часы */
 const clock = new THREE.Clock();
 
-// панель контроля Рей
+/* контроллер Рей */
 const ReiController = {
   state: {
-    mood: 'calm',        // calm | caring | alert | shy | serious
-    energy: 0.3,         // 0..1 — общая живость
-    attention: 0.0,      // 0..1 — интерес к пользователю
+    mood: 'calm',
+    energy: 0.4,
+    attention: 0.0,
     idlePhase: Math.random() * Math.PI * 2
   },
 
@@ -75,73 +78,65 @@ const ReiController = {
     this.state.idlePhase += delta;
   },
 
-  apply(model, baseY) {
+  apply(model) {
     const { mood, energy, idlePhase } = this.state;
 
-    /* ---- Idle posture ---- */
-    let headTilt = 0;
-    let bodySway = 0;
+    let headTilt = 0.04;
+    let bodySway = 0.06;
+    let breath = idle.breathPower;
 
     switch (mood) {
-      case 'calm':
-        headTilt = 0.04;
-        bodySway = 0.06;
-        break;
       case 'caring':
-        headTilt = 0.08;
-        bodySway = 0.08;
+        headTilt = 0.07;
+        bodySway = 0.09;
+        breath *= 1.2;
         break;
       case 'alert':
         headTilt = 0.02;
-        bodySway = 0.1;
+        bodySway = 0.12;
+        breath *= 0.8;
         break;
     }
 
-    /* ---- Apply transforms ---- */
-    model.position.y = baseY;
+    /* дыхание */
+    model.position.y =
+      basePose.y +
+      Math.sin(idlePhase * idle.breathSpeed) * breath * energy;
 
+    /* покачивание */
     model.rotation.y =
-      Math.sin(idlePhase * 0.6) * bodySway * energy;
+      basePose.rotY +
+      Math.sin(idlePhase * idle.swaySpeed) * bodySway * energy;
 
+    /* лёгкий наклон головы */
     model.rotation.x =
       Math.sin(idlePhase * 0.4) * headTilt * energy;
   }
 };
 
-// команды
-
+/* CommandBus */
 const CommandBus = {
   listeners: {},
-
-  on(type, handler) {
-    if (!this.listeners[type]) {
-      this.listeners[type] = [];
-    }
-    this.listeners[type].push(handler);
+  on(type, fn) {
+    (this.listeners[type] ??= []).push(fn);
   },
-
   emit(type, payload) {
-    if (!this.listeners[type]) return;
-    this.listeners[type].forEach(fn => fn(payload));
+    this.listeners[type]?.forEach(fn => fn(payload));
   }
 };
 
-// связка команд с Рей
+/* команды */
 CommandBus.on('command', ({ text }) => {
   const t = text.toLowerCase();
 
-  if (t.includes('смотри')) {
-    ReiController.state.attention = 1.0;
-  }
-
   if (t.includes('успокой')) {
     ReiController.state.mood = 'calm';
-    ReiController.state.energy = 0.2;
+    ReiController.state.energy = 0.25;
   }
 
-  if (t.includes('рад') || t.includes('улыб')) {
+  if (t.includes('улыб') || t.includes('рад')) {
     ReiController.state.mood = 'caring';
-    ReiController.state.energy = 0.5;
+    ReiController.state.energy = 0.55;
   }
 
   if (t.includes('стоп')) {
@@ -149,32 +144,29 @@ CommandBus.on('command', ({ text }) => {
   }
 });
 
+window.CommandBus = CommandBus;
+
 /* анимация */
 function animate() {
   requestAnimationFrame(animate);
 
-  if (reiModel) {
   const delta = clock.getDelta();
-  ReiController.update(delta);
-  ReiController.apply(reiModel, baseY);
-}
+
+  if (reiModel) {
+    ReiController.update(delta);
+    ReiController.apply(reiModel);
+  }
 
   renderer.render(scene, camera);
 }
-
 animate();
 
 /* resize */
 window.addEventListener('resize', () => {
-  const width = container.clientWidth;
-  const height = container.clientHeight;
-
-  if (width === 0 || height === 0) return;
-
-  camera.aspect = width / height;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  if (!w || !h) return;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
+  renderer.setSize(w, h);
 });
-
-// команды
-window.CommandBus = CommandBus;
