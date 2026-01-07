@@ -95,3 +95,21 @@ button.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
+
+// TEMP EVA HUD STATE
+window.reiState = {
+  mood: "calm",
+  energy: 0.6
+};
+
+function updateEvaHud() {
+  const moodEl = document.getElementById("hud-mood");
+  const energyEl = document.getElementById("hud-energy");
+
+  if (!moodEl || !energyEl) return;
+
+  moodEl.textContent = window.reiState.mood.toUpperCase();
+  energyEl.style.width = `${window.reiState.energy * 100}%`;
+}
+
+updateEvaHud();

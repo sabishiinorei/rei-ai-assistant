@@ -34,7 +34,7 @@
     <button id="send">➤</button>
   </div>
 
-  <div class="footer">EVA-inspired UI · Rei v0.2</div>
+  <div class="footer">EVA-inspired UI · Rei v0.1</div>
 </div>
 
 <!-- ТОЛЬКО UI -->
@@ -45,6 +45,51 @@
 
 <!-- 3D Модель -->
 <script type="module" src="./rei3d.js"></script>
+
+<!-- EVA HUD (TEMP VISUAL LAYER) -->
+<div id="eva-hud">
+  <div class="eva-frame">
+
+    <!-- EVA CORNERS -->
+    <div class="eva-corner tl"></div>
+    <div class="eva-corner tr"></div>
+    <div class="eva-corner bl"></div>
+    <div class="eva-corner br"></div>
+
+    <!-- INNER LAYER -->
+    <div class="eva-inner">
+
+      <div class="eva-title">REI // EVA INTERFACE</div>
+
+      <div class="eva-row">
+        <span class="label">SYNC STATUS</span>
+        <span class="value online">ONLINE</span>
+      </div>
+
+      <div class="eva-row">
+        <span class="label">EMO-STATE</span>
+        <span class="value mood" id="hud-mood">CALM</span>
+      </div>
+
+      <div class="eva-row">
+        <span class="label">ENERGY FLOW</span>
+        <div class="energy-bar">
+          <div class="energy-fill" id="hud-energy"></div>
+        </div>
+      </div>
+
+      <div class="eva-footer">CORE LINK :: STABLE</div>
+
+      <!-- TECH TEXT -->
+      <div class="eva-tech">
+        NODE: EVA-01<br>
+        CORE: REI.AI<br>
+        PROTOCOL: NOMINAL
+      </div>
+
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
