@@ -253,6 +253,7 @@ button {
   bottom: 20px;
   width: 300px;
   height: 400px;
-  pointer-events: none;
+  background: rgba(255, 0, 0, 0.1); /* ВРЕМЕННО */
   z-index: 10;
 }
+
