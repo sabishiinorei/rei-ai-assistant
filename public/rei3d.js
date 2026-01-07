@@ -21,7 +21,7 @@ const camera = new THREE.PerspectiveCamera(
   100
 );
 camera.position.set(0, 1.65, 5.1);
-camera.lookAt(0, 0/95, 0);
+camera.lookAt(0, 0.95, 0);
 
 /* рендерер */
 const renderer = new THREE.WebGLRenderer({
@@ -152,12 +152,10 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (reiModel) {
-    reiModel.rotation.y = 0;
-    reiModel.position.y = baseY;
-
-    const breathe = 1 + Math.sin(Date.now() * 0.0015) * 0.01;
-    reiModel.scale.y = 1.35 * breathe;
-  }
+  const delta = clock.getDelta();
+  ReiController.update(delta);
+  ReiController.apply(reiModel, baseY);
+}
 
   renderer.render(scene, camera);
 }
@@ -175,3 +173,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
 });
+
+// команды
+window.CommandBus = CommandBus;

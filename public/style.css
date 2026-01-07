@@ -237,7 +237,6 @@ button {
   pointer-events: none;
 }
 
-
 /* скрываем на маленьких экранах */
 @media (max-width: 768px) {
   #rei-3d-container {
@@ -248,7 +247,7 @@ button {
     width: 260px;
     height: 480px;
 
-    z-index: 0;
+    z-index: 5;
     opacity: 0.9;
   }
 }
