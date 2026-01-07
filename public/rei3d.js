@@ -60,6 +60,93 @@ loader.load(
   (err) => console.error('GLTF ERROR', err)
 );
 
+// панель контроля Рей
+const ReiController = {
+  state: {
+    mood: 'calm',        // calm | caring | alert | shy | serious
+    energy: 0.3,         // 0..1 — общая живость
+    attention: 0.0,      // 0..1 — интерес к пользователю
+    idlePhase: Math.random() * Math.PI * 2
+  },
+
+  update(delta) {
+    this.state.idlePhase += delta;
+  },
+
+  apply(model, baseY) {
+    const { mood, energy, idlePhase } = this.state;
+
+    /* ---- Idle posture ---- */
+    let headTilt = 0;
+    let bodySway = 0;
+
+    switch (mood) {
+      case 'calm':
+        headTilt = 0.04;
+        bodySway = 0.06;
+        break;
+      case 'caring':
+        headTilt = 0.08;
+        bodySway = 0.08;
+        break;
+      case 'alert':
+        headTilt = 0.02;
+        bodySway = 0.1;
+        break;
+    }
+
+    /* ---- Apply transforms ---- */
+    model.position.y = baseY;
+
+    model.rotation.y =
+      Math.sin(idlePhase * 0.6) * bodySway * energy;
+
+    model.rotation.x =
+      Math.sin(idlePhase * 0.4) * headTilt * energy;
+  }
+};
+
+// команды
+
+const CommandBus = {
+  listeners: {},
+
+  on(type, handler) {
+    if (!this.listeners[type]) {
+      this.listeners[type] = [];
+    }
+    this.listeners[type].push(handler);
+  },
+
+  emit(type, payload) {
+    if (!this.listeners[type]) return;
+    this.listeners[type].forEach(fn => fn(payload));
+  }
+};
+
+// связка команд с Рей
+CommandBus.on('command', ({ text }) => {
+  const t = text.toLowerCase();
+
+  if (t.includes('смотри')) {
+    ReiController.state.attention = 1.0;
+  }
+
+  if (t.includes('успокой')) {
+    ReiController.state.mood = 'calm';
+    ReiController.state.energy = 0.2;
+  }
+
+  if (t.includes('рад') || t.includes('улыб')) {
+    ReiController.state.mood = 'caring';
+    ReiController.state.energy = 0.5;
+  }
+
+  if (t.includes('стоп')) {
+    ReiController.state.energy = 0.0;
+  }
+});
+
 /* анимация */
 function animate() {
   requestAnimationFrame(animate);

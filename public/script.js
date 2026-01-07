@@ -61,8 +61,15 @@ async function sendMessage() {
     setEmotion("calm");
   }
 
+// отправка сообщений
   addMessage(text, "user");
   input.value = "";
+
+  // команды для Рей
+if (window.CommandBus) {
+  window.CommandBus.emit("command", { text });
+}
+
 
   const thinking = addMessage("Рей думает...", "rei");
 
