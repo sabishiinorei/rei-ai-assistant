@@ -42,7 +42,7 @@ scene.add(dirLight);
 
 /* модель */
 let reiModel = null;
-const baseY = -1.8;
+const baseY = -1.2;
 
 const loader = new GLTFLoader();
 loader.load(
@@ -59,6 +59,8 @@ loader.load(
   undefined,
   (err) => console.error('GLTF ERROR', err)
 );
+
+const clock = new THREE.Clock();
 
 // панель контроля Рей
 const ReiController = {
@@ -162,7 +164,7 @@ function animate() {
 
 animate();
 
-/* resize — ПРОСТОЙ И НАДЁЖНЫЙ */
+/* resize */
 window.addEventListener('resize', () => {
   const width = container.clientWidth;
   const height = container.clientHeight;
