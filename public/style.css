@@ -33,8 +33,7 @@ body::before {
   z-index: -1;
 }
 
-/* ===== APP ===== */
-
+/* app */
 .app {
   width: min(92vw, 420px);
   height: 90vh;
@@ -53,8 +52,7 @@ body::before {
   animation: pulse 6s ease-in-out infinite;
 }
 
-/* ===== HEADER ===== */
-
+/* header */
 .header {
   display: flex;
   align-items: center;
@@ -82,8 +80,7 @@ body::before {
   opacity: 0.75;
 }
 
-/* ===== AVATAR (REI) ===== */
-
+/* avatar */
 .avatar {
   width: 52px;
   height: 52px;
@@ -119,8 +116,7 @@ body::before {
   box-shadow: 0 0 28px rgba(255,120,120,1);
 }
 
-/* ===== CHAT ===== */
-
+/* chat */
 .chat {
   flex: 1;
   background: rgba(0,0,0,0.35);
@@ -131,19 +127,7 @@ body::before {
   margin-bottom: 12px;
 }
 
-#rei-3d {
-  position: absolute;
-  right: 40px;
-  bottom: 40px;
-  width: 400px;
-  height: 600px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-
-/* ===== MESSAGES ===== */
-
+/* message */
 .message {
   max-width: 85%;
   padding: 13px 14px;
@@ -177,8 +161,7 @@ body::before {
   text-align: right;
 }
 
-/* ===== INPUT ===== */
-
+/* input */
 .input-area {
   display: flex;
   gap: 8px;
@@ -206,8 +189,7 @@ button {
   cursor: pointer;
 }
 
-/* ===== FOOTER ===== */
-
+/* footer */
 .footer {
   margin-top: 10px;
   text-align: center;
@@ -215,8 +197,7 @@ button {
   opacity: 0.6;
 }
 
-/* ===== ANIMATIONS ===== */
-
+/* animations */
 @keyframes messageIn {
   to {
     opacity: 1;
@@ -248,14 +229,27 @@ button {
 }
 
 #rei-3d-container {
-  position: absolute;
+  position: fixed;
   right: 40px;
   bottom: 40px;
-
-  width: 320px;
-  height: 420px;
-
-  background: transparent;
+  width: 360px;
+  height: 640px;
   pointer-events: none;
-  z-index: 10;
 }
+
+
+/* скрываем на маленьких экранах */
+@media (max-width: 768px) {
+  #rei-3d-container {
+    right: 50%;
+    bottom: 10px;
+    transform: translateX(50%);
+
+    width: 260px;
+    height: 480px;
+
+    z-index: 0;
+    opacity: 0.9;
+  }
+}
+
