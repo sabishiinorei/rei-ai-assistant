@@ -13,6 +13,16 @@ app.use(express.json());
 
 // 🔥 ЯВНО указываем public
 const PUBLIC_DIR = path.join(__dirname, "public");
+
+app.get("/ip", async (req, res) => {
+  try {
+  const r = await fetch("https://api.ipify.org?format=json");
+  res.json(await r.json());
+  } catch (e) {
+    res.status(500).json({ error: "ip check failed" });
+  }
+});
+
 app.use(express.static(PUBLIC_DIR));
 
 const openai = new OpenAI({
