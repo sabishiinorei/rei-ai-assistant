@@ -1,3 +1,5 @@
+import { setReiState, onReiStateChange } from "./reiState.js";
+
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("send");
@@ -5,7 +7,9 @@ const avatar = document.getElementById("avatar");
 
 const API_URL = "/chat";
 
-// ID пользователя
+/* =======================
+   ID пользователя
+======================= */
 let userId = localStorage.getItem("rei_user_id");
 
 if (!userId) {
@@ -15,8 +19,9 @@ if (!userId) {
 
 console.log("FRONT USER ID:", userId);
 
-
-// время
+/* =======================
+   Время сообщений
+======================= */
 function getTime() {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -24,13 +29,17 @@ function getTime() {
   });
 }
 
-// эмоции
+/* =======================
+   Эмоции (CSS / модель)
+======================= */
 function setEmotion(type) {
   if (!avatar) return;
   avatar.className = "avatar " + type;
 }
 
-// сообщение
+/* =======================
+   Добавление сообщений
+======================= */
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
@@ -45,33 +54,24 @@ function addMessage(text, type) {
   return div;
 }
 
-// чат
+/* =======================
+   Основная логика чата
+======================= */
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // реакция на пользователя
-  if (text.match(/люблю|милая|спасибо|классная/i)) {
-    setEmotion("happy");
-  } else if (text.match(/плохо|грусть|тяжело/i)) {
-    setEmotion("caring");
-  } else if (text.match(/моя|ревную|только ты/i)) {
-    setEmotion("jealous");
-  } else {
-    setEmotion("calm");
-  }
+  // Пользователь написал → Рей думает
+  setReiState({ mode: "thinking", mood: "focused" });
 
-// отправка сообщений
   addMessage(text, "user");
   input.value = "";
 
-  // команды для Рей
-if (window.CommandBus) {
-  window.CommandBus.emit("command", { text });
-}
+  if (window.CommandBus) {
+    window.CommandBus.emit("command", { text });
+  }
 
-
-  const thinking = addMessage("Рей думает...", "rei");
+  const thinkingMsg = addMessage("Рей думает...", "rei");
 
   try {
     const res = await fetch(API_URL, {
@@ -81,35 +81,40 @@ if (window.CommandBus) {
     });
 
     const data = await res.json();
-    thinking.querySelector(".text").textContent = data.reply || "...";
+    thinkingMsg.querySelector(".text").textContent = data.reply || "...";
 
-    setTimeout(() => setEmotion("calm"), 4000);
+    // Рей говорит
+    setReiState({ mode: "speaking", mood: "calm" });
+    setEmotion("calm");
 
-  } catch {
-    thinking.querySelector(".text").textContent = "Связь потеряна...";
+    // Возврат в ожидание
+    setTimeout(() => {
+      setReiState({ mode: "listening", mood: "happy" });
+    }, 1200);
+
+  } catch (e) {
+    thinkingMsg.querySelector(".text").textContent = "Связь потеряна...";
+    setReiState({ mode: "idle", mood: "caring" });
     setEmotion("caring");
   }
 }
 
+/* =======================
+   События
+======================= */
 button.addEventListener("click", sendMessage);
+
 input.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
 
-// TEMP EVA HUD STATE
-window.reiState = {
-  mood: "calm",
-  energy: 0.6
-};
+/* =======================
+   HUD (EVA-интерфейс)
+======================= */
+const hudMode = document.getElementById("hud-mode");
+const hudMood = document.getElementById("hud-mood");
 
-function updateEvaHud() {
-  const moodEl = document.getElementById("hud-mood");
-  const energyEl = document.getElementById("hud-energy");
-
-  if (!moodEl || !energyEl) return;
-
-  moodEl.textContent = window.reiState.mood.toUpperCase();
-  energyEl.style.width = `${window.reiState.energy * 100}%`;
-}
-
-updateEvaHud();
+onReiStateChange(state => {
+  if (hudMode) hudMode.textContent = state.mode.toUpperCase();
+  if (hudMood) hudMood.textContent = state.mood.toUpperCase();
+});
