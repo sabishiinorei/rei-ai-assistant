@@ -1,62 +1,89 @@
-// reiState
+// reiState.js — ядро поведения Rei
 
 const state = {
-  mode: "idle",     // idle | thinking | speaking | listening
-  mood: "calm",     // calm | happy | caring | focused
-  energy: 1         // 0..1
+  mode: "idle",        // idle | thinking | speaking | listening
+  mood: "calm",        // calm | happy | caring | focused
+  energy: 0.8          // 0..1
 };
 
 const listeners = [];
 
-export function getReiState() {
-  return { ...state };
+// ===== УВЕДОМЛЕНИЕ О СМЕНЕ СОСТОЯНИЯ =====
+function notify() {
+  console.log("[ReiState]", { ...state });
+  listeners.forEach(fn => fn({ ...state }));
 }
 
-export function setReiState(patch) {
+// ===== ПУБЛИЧНЫЙ SET =====
+function setReiState(patch = {}) {
   Object.assign(state, patch);
-
-  console.log("[ReiState]", state);
-
-  listeners.forEach(fn => fn(getReiState()));
+  notify();
 }
 
-export function onReiStateChange(fn) {
+// ===== ПОДПИСКА =====
+function onReiStateChange(fn) {
   listeners.push(fn);
+  fn({ ...state });
 }
 
-// чтобы было видно в консоли браузера
-window.reiState = state;
-window.setReiState = setReiState;
+// =================================================
+// 🧠 ПОВЕДЕНИЕ / АВТОМАТИКА
+// =================================================
 
-// поведение мини-окошки
+// ⏳ СПАД ЭМОЦИЙ
+let moodTimer = null;
 
-let idleTimer = null;
+function scheduleMoodReset() {
+  clearTimeout(moodTimer);
 
-function resetIdleTimer() {
-  if (idleTimer) clearTimeout(idleTimer);
+  // caring держится дольше
+  const timeout =
+    state.mood === "caring" ? 60000 :
+    state.mood === "happy" ? 40000 :
+    state.mood === "focused" ? 25000 :
+    0;
 
-  // через 5 сек — idle
-  idleTimer = setTimeout(() => {
-    setReiState({ mode: "idle", mood: "calm" });
+  if (!timeout) return;
 
-    // через 20 сек — спокойствие
-    idleTimer = setTimeout(() => {
-      setReiState({ mode: "idle", mood: "peaceful" });
-
-      // через 60 сек — сонливость
-      idleTimer = setTimeout(() => {
-        setReiState({ mode: "idle", mood: "sleepy" });
-      }, 40000);
-
-    }, 15000);
-
-  }, 5000);
+  moodTimer = setTimeout(() => {
+    setReiState({ mood: "calm" });
+  }, timeout);
 }
 
-// любые действия пользователя сбрасывают idle
-["click", "keydown", "mousemove"].forEach(event => {
-  document.addEventListener(event, resetIdleTimer);
+// ⏳ СПАД РЕЖИМОВ
+let modeTimer = null;
+
+function scheduleModeFlow() {
+  clearTimeout(modeTimer);
+
+  if (state.mode === "thinking") {
+    modeTimer = setTimeout(() => {
+      setReiState({ mode: "speaking" });
+    }, 1200);
+  }
+
+  if (state.mode === "speaking") {
+    modeTimer = setTimeout(() => {
+      setReiState({ mode: "listening" });
+    }, 1500);
+  }
+
+  if (state.mode === "listening") {
+    modeTimer = setTimeout(() => {
+      setReiState({ mode: "idle" });
+    }, 3000);
+  }
+}
+
+// ===== АВТО-РЕАКЦИИ НА ИЗМЕНЕНИЯ =====
+onReiStateChange((s) => {
+  scheduleMoodReset();
+  scheduleModeFlow();
 });
 
-// запуск при старте
-resetIdleTimer();
+// ===== ПУБЛИЧНЫЙ EXPORT =====
+export {
+  state as reiState,
+  setReiState,
+  onReiStateChange
+};
