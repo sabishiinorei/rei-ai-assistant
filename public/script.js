@@ -1,4 +1,4 @@
-import { setReiState, onReiStateChange } from "./reiState.js";
+import { setReiState, onReiStateChange, getReiState } from "./reiState.js";
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
@@ -11,26 +11,21 @@ const API_URL = "/chat";
    ID пользователя
 ======================= */
 let userId = localStorage.getItem("rei_user_id");
-
 if (!userId) {
   userId = crypto.randomUUID();
   localStorage.setItem("rei_user_id", userId);
 }
-
 console.log("FRONT USER ID:", userId);
 
 /* =======================
    Время сообщений
 ======================= */
 function getTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 /* =======================
-   Эмоции (CSS / модель)
+   Эмоции аватара (CSS)
 ======================= */
 function setEmotion(type) {
   if (!avatar) return;
@@ -55,14 +50,92 @@ function addMessage(text, type) {
 }
 
 /* =======================
+   Авто-focus (input/cursor/chat)
+======================= */
+let lastMouseMoveAt = 0;
+let lastTypingAt = 0;
+let focusTick = null;
+
+function setFocusSmart(nextFocus) {
+  const cur = getReiState?.() || {};
+  if (cur.focus === nextFocus) return;
+  setReiState({ focus: nextFocus });
+}
+
+window.addEventListener("mousemove", () => {
+  lastMouseMoveAt = Date.now();
+});
+
+input?.addEventListener("focus", () => {
+  lastTypingAt = Date.now();
+  setFocusSmart("input");
+});
+
+input?.addEventListener("blur", () => {
+  // при уходе из поля — пусть смотрит в чат
+  setFocusSmart("chat");
+});
+
+input?.addEventListener("input", () => {
+  lastTypingAt = Date.now();
+  setFocusSmart("input");
+});
+
+focusTick = setInterval(() => {
+  const now = Date.now();
+
+  // приоритет 1: если недавно печатали
+  if (now - lastTypingAt < 1200) {
+    setFocusSmart("input");
+    return;
+  }
+
+  // приоритет 2: если недавно двигали мышь
+  if (now - lastMouseMoveAt < 650) {
+    // если фокус реально на input — не перебиваем
+    if (document.activeElement === input) {
+      setFocusSmart("input");
+    } else {
+      setFocusSmart("cursor");
+    }
+    return;
+  }
+
+  // иначе: чат
+  setFocusSmart("chat");
+}, 120);
+
+/* =======================
+   Лёгкая эвристика “милоты”
+   (чтобы happy не было просто так)
+======================= */
+function guessMoodByText(text) {
+  const t = (text || "").toLowerCase();
+
+  const caring = [
+    "плохо", "тяжело", "грусть", "больно", "устал", "одиноко", "помоги",
+    "страшно", "паника", "не могу", "плохо себя", "болею"
+  ];
+  const happy = [
+    "спасибо", "люблю", "мила", "красив", "умничка", "лучш", "кайф",
+    "обожаю", "ты супер", "ты класс", "ня", "🥺", "😊", "❤️"
+  ];
+
+  if (caring.some(w => t.includes(w))) return "caring";
+  if (happy.some(w => t.includes(w))) return "happy";
+  return "focused";
+}
+
+/* =======================
    Основная логика чата
 ======================= */
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // Пользователь написал → Рей думает
-  setReiState({ mode: "thinking", mood: "focused" });
+  // Пользователь написал → Рей думает + настроение по тексту
+  const mood = guessMoodByText(text);
+  setReiState({ mode: "thinking", mood });
 
   addMessage(text, "user");
   input.value = "";
@@ -84,13 +157,18 @@ async function sendMessage() {
     thinkingMsg.querySelector(".text").textContent = data.reply || "...";
 
     // Рей говорит
-    setReiState({ mode: "speaking", mood: "calm" });
-    setEmotion("calm");
+    setReiState({ mode: "speaking" });
+    setEmotion(mood === "caring" ? "caring" : mood === "happy" ? "happy" : "calm");
 
-    // Возврат в ожидание
+    // Возврат в ожидание (НЕ делаем happy автоматически)
     setTimeout(() => {
-      setReiState({ mode: "listening", mood: "happy" });
-    }, 1200);
+      const cur = getReiState?.() || {};
+      setReiState({
+        mode: "idle",
+        mood: cur.mood || "calm"
+      });
+      setEmotion(cur.mood === "caring" ? "caring" : cur.mood === "happy" ? "happy" : "calm");
+    }, 900);
 
   } catch (e) {
     thinkingMsg.querySelector(".text").textContent = "Связь потеряна...";
@@ -102,9 +180,8 @@ async function sendMessage() {
 /* =======================
    События
 ======================= */
-button.addEventListener("click", sendMessage);
-
-input.addEventListener("keydown", e => {
+button?.addEventListener("click", sendMessage);
+input?.addEventListener("keydown", e => {
   if (e.key === "Enter") sendMessage();
 });
 
@@ -114,7 +191,7 @@ input.addEventListener("keydown", e => {
 const hudMode = document.getElementById("hud-mode");
 const hudMood = document.getElementById("hud-mood");
 
-onReiStateChange(state => {
-  if (hudMode) hudMode.textContent = state.mode.toUpperCase();
-  if (hudMood) hudMood.textContent = state.mood.toUpperCase();
+onReiStateChange((state) => {
+  if (hudMode) hudMode.textContent = String(state.mode || "idle").toUpperCase();
+  if (hudMood) hudMood.textContent = String(state.mood || "calm").toUpperCase();
 });
