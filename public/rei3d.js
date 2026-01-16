@@ -55,8 +55,6 @@ scene.add(dirLight);
 scene.add(dirLight.target);
 dirLight.target.position.set(0, 1.0, 0);
 
-// --- floor (ловит тень, сам почти не виден) ---
-
 /* модель */
 let reiModel = null;
 
@@ -92,16 +90,12 @@ floor.receiveShadow = true;
 
 scene.add(floor);
 
-
 /* idle параметры (дыхание) */
 const idle = {
   breathSpeed: 1.0,
   breathPower: 0.022
 };
 
-/* =========================
-   BONE FACE CONTROLLER (anime + гарантированное моргание)
-========================= */
 /* =========================
    BONE FACE CONTROLLER (DEF-first + anime blink)
 ========================= */
@@ -133,17 +127,10 @@ const BoneFaceController = {
 
   // Настройки “аниме”
   cfg: {
-    // моргание (попробуем X как в твоём рабочем — оно у тебя точно работало)
     BLINK_TOP_X: -0.55,
     BLINK_BOT_X: +0.35,
-
-    // прищур при улыбке
     SQUINT_TOP_X: -0.12,
-
-    // брови вниз при focus
     BROW_FOCUS_X: -0.18,
-
-    // улыбка: чаще всего у подобных ригов это Z (как ты делал)
     LIP_SMILE_Z: 0.10
   },
 
@@ -219,7 +206,7 @@ const BoneFaceController = {
         continue;
       }
 
-      // brows (можно DEF/ORG/MCH — главное чтобы были)
+      // brows
       if (n.includes("brow")) {
         if (isTL(n) || isBL(n) || n.includes("left") || n.endsWith("l")) this.bones.browTopL.push(b);
         if (isTR(n) || isBR(n) || n.includes("right") || n.endsWith("r")) this.bones.browTopR.push(b);
@@ -243,13 +230,11 @@ const BoneFaceController = {
     this.bones.lidBotL = pick(defBotL, plainBotL, 8);
     this.bones.lidBotR = pick(defBotR, plainBotR, 8);
 
-    // лимиты чтобы не крутить сотни
     this.bones.browTopL = this.bones.browTopL.slice(0, 10);
     this.bones.browTopR = this.bones.browTopR.slice(0, 10);
     this.bones.lipTopL = this.bones.lipTopL.slice(0, 14);
     this.bones.lipTopR = this.bones.lipTopR.slice(0, 14);
 
-    // remember base rotations
     const remember = (arr) => {
       for (const b of arr) this.baseRot.set(b.uuid, b.rotation.clone());
     };
@@ -291,7 +276,6 @@ const BoneFaceController = {
     const mood = reiState?.mood || "calm";
     const energy = (typeof reiState?.energy === "number") ? reiState.energy : 0.6;
 
-    // face targets
     let targetSmile = 0.0;
     if (mode === "speaking") targetSmile = 0.28;
     if (mood === "happy") targetSmile = Math.max(targetSmile, 0.42);
@@ -308,7 +292,6 @@ const BoneFaceController = {
     this.w.focus += (targetFocus - this.w.focus) * k;
     this.w.squint += (targetSquint - this.w.squint) * k;
 
-    // blink scheduler (аниме чаще)
     const e = THREE.MathUtils.clamp(energy, 0, 1);
     const tired = 1 - e;
 
@@ -363,7 +346,6 @@ const BoneFaceController = {
       }
     }
 
-    // APPLY
     const blink = THREE.MathUtils.clamp(this.w.blink, 0, 1);
     const smile = THREE.MathUtils.clamp(this.w.smile * (1.0 - 0.35 * this.w.focus), 0, 1);
     const focus = THREE.MathUtils.clamp(this.w.focus, 0, 1);
@@ -372,17 +354,14 @@ const BoneFaceController = {
     const topX = (this.cfg.BLINK_TOP_X * blink) + (this.cfg.SQUINT_TOP_X * squint);
     const botX = (this.cfg.BLINK_BOT_X * blink);
 
-    // eyelids (X — как у твоего рабочего варианта)
     for (const b of this.bones.lidTopL) this._applyRot(b, topX, 0, 0);
     for (const b of this.bones.lidTopR) this._applyRot(b, topX, 0, 0);
     for (const b of this.bones.lidBotL) this._applyRot(b, botX, 0, 0);
     for (const b of this.bones.lidBotR) this._applyRot(b, botX, 0, 0);
 
-    // brows (focus)
     for (const b of this.bones.browTopL) this._applyRot(b, this.cfg.BROW_FOCUS_X * focus, 0, 0);
     for (const b of this.bones.browTopR) this._applyRot(b, this.cfg.BROW_FOCUS_X * focus, 0, 0);
 
-    // smile (Z)
     for (const b of this.bones.lipTopL) this._applyRot(b, 0, 0, +this.cfg.LIP_SMILE_Z * smile);
     for (const b of this.bones.lipTopR) this._applyRot(b, 0, 0, -this.cfg.LIP_SMILE_Z * smile);
   }
@@ -390,6 +369,7 @@ const BoneFaceController = {
 
 /* =========================
    BODY IDLE + RELAX ARMS (auto-bones, reiState-aware)
+   (вариант 1: безопасно для твоего stretch-рига)
 ========================= */
 const BodyIdleController = {
   bones: {
@@ -407,43 +387,29 @@ const BodyIdleController = {
   },
 
   baseQ: new Map(), // uuid -> Quaternion
-  w: { pose: 0, amp: 1, speed: 1 }, // smoothed weights
+  w: { pose: 0, amp: 1, speed: 1 },
 
-  // Быстрый тюнинг тут (всё в радианах!)
   cfg: {
-    // насколько сильно включать relax-позу рук (0..1)
     poseBase: 1.0,
 
-    // RELAX OFFSETS (очень консервативные дефолты, тюнь под свой риг)
-    // Если оси окажутся “не теми” — просто поменяй знак/ось тут.
+    // ВАРИАНТ 1: плечи + локоть, без upperArm/кистей
     relax: {
-      // ещё чуть ниже + чуть больше “внутрь”
       shoulder: { x: -0.22, y: -0.14, z: 0.05 },
-
-      // больше сведение к корпусу (это главный “убрать разведение”)
-      upperArm: { x: 0.00, y: -0.00, z: -0.00 },
-
-      // локоть немного мягче (чтобы не палки)
-      foreArm: { x: 0.12, y: 0.00, z: 0.00 },
-
-      // кисть чуть “мягкая”, но совсем немного
-      hand: { x: 0.00, y: 0.00, z: 0.00 }
+      upperArm: { x: 0.00, y: 0.00, z: 0.00 }, // не используем
+      foreArm:  { x: 0.12, y: 0.00, z: 0.00 }, // bend only
+      hand:     { x: 0.00, y: 0.00, z: 0.00 }  // не используем
     },
-    poseBase: 1.0,
 
-
-    // Микродвижения (body idle) — тоже консервативно
+    // ЖИВОЕ ТЕЛО: дыхание + sway + перенос веса hips
     idle: {
-      // дыхание грудью/спиной (поворот по X)
       breathX: 0.028,
-      // лёгкий “наклон/свай” по Z и Y
       swayZ: 0.018,
       swayY: 0.010,
-      // микро-движение плеч
+      hipsY: 0.016,
+      hipsZ: 0.010,
       shoulderZ: 0.012
     },
 
-    // Профили по режимам: амплитуда/скорость/насколько “собранная” поза
     modes: {
       idle:      { amp: 1.00, speed: 1.00, pose: 1.00 },
       listening: { amp: 0.80, speed: 0.95, pose: 1.05 },
@@ -451,60 +417,34 @@ const BodyIdleController = {
       speaking:  { amp: 1.20, speed: 1.15, pose: 0.98 }
     },
 
-    smooth: 10.0 // скорость сглаживания
-  },
-
-  _norm(s) { return String(s || "").toLowerCase(); },
-
-  _findFirstBone(root, keywords) {
-    let found = null;
-    root.traverse((o) => {
-      if (found) return;
-      if (!o.isBone || !o.name) return;
-      const n = this._norm(o.name);
-      if (keywords.some(k => n.includes(k))) found = o;
-    });
-    return found;
-  },
-
-  _findLR(root, leftKeys, rightKeys) {
-    return {
-      L: this._findFirstBone(root, leftKeys),
-      R: this._findFirstBone(root, rightKeys)
-    };
-  },
-
-  _rememberBase(b) {
-    if (!b) return;
-    this.baseQ.set(b.uuid, b.quaternion.clone());
+    smooth: 10.0
   },
 
   init(model) {
-  model.updateMatrixWorld(true);
+    model.updateMatrixWorld(true);
 
-  const isHelper = (name) => {
-    const n = String(name || "").toLowerCase();
-    return (
-      n.includes("twist") ||
-      n.includes("track") ||
-      n.includes("pole")  ||
-      n.includes("ik")    ||
-      n.includes("target")||
-      n.includes("refr")
-    );
-  };
+    const isHelper = (name) => {
+      const n = String(name || "").toLowerCase();
+      return (
+        n.includes("twist") ||
+        n.includes("track") ||
+        n.includes("pole")  ||
+        n.includes("ik")    ||
+        n.includes("target")||
+        n.includes("refr")  ||
+        n.includes("traj")
+      );
+    };
 
-  const preferDeform = (bone, maxUp = 8) => {
-    let b = bone;
-    for (let i = 0; i < maxUp && b; i++) {
-      if (!b?.isBone) break;
-      if (!isHelper(b.name)) return b;
-      b = b.parent;
-    }
-    return bone;
-  };
-
-
+    const preferDeform = (bone, maxUp = 8) => {
+      let b = bone;
+      for (let i = 0; i < maxUp && b; i++) {
+        if (!b?.isBone) break;
+        if (!isHelper(b.name)) return b;
+        b = b.parent;
+      }
+      return bone;
+    };
 
     const bones = [];
     model.traverse(o => { if (o.isBone) bones.push(o); });
@@ -513,39 +453,32 @@ const BodyIdleController = {
 
     const pickLRByX = (cands) => {
       if (!cands.length) return { L: null, R: null };
-      // мировая позиция кости
       const withX = cands.map(b => {
         const p = new THREE.Vector3();
         b.getWorldPosition(p);
         return { b, x: p.x };
       }).sort((a, b) => a.x - b.x);
 
-      // если только одна — вернём как R, чтобы хоть что-то работало
       if (withX.length === 1) return { L: null, R: withX[0].b };
-
-      const L = withX[0].b;
-      const R = withX[withX.length - 1].b;
-      return { L, R };
+      return { L: withX[0].b, R: withX[withX.length - 1].b };
     };
 
-    const pickOne = (keys) => {
-      // первый попавшийся по ключам (для hips/spine обычно хватает)
-      return bones.find(b => keys.some(k => norm(b.name).includes(k))) || null;
-    };
+    const pickOne = (keys) => bones.find(b => keys.some(k => norm(b.name).includes(k))) || null;
+    const pickAll = (keys) => bones.filter(b => keys.some(k => norm(b.name).includes(k)));
 
-    const pickAll = (keys) => {
-      return bones.filter(b => keys.some(k => norm(b.name).includes(k)));
-    };
-
-    // --- core ---
+    // core
     this.bones.hips  = pickOne(["hips", "pelvis", "rootjoint", "root"]);
     this.bones.spine = pickOne(["spine", "c_p_spine", "spine_00", "spine00", "spine1"]);
     this.bones.chest = pickOne(["chest", "spine2", "upperchest", "spine_02", "spine02"]);
 
-    // --- hands: FIX L/R (by name first, fallback by distance to shoulders) ---
-    const hands = pickAll(["hand"]);
+    // shoulders
+    const shoulders = pickAll(["shoulder"]);
+    const slr = pickLRByX(shoulders);
+    this.bones.shoulderL = slr.L;
+    this.bones.shoulderR = slr.R;
 
-    // 1) пробуем по имени (самый надёжный вариант)
+    // hands (name-first, fallback)
+    const hands = pickAll(["hand"]);
     const handByNameL = hands.find(b => /(^|_)handl(_|$)/i.test(b.name) || /left.*hand/i.test(b.name));
     const handByNameR = hands.find(b => /(^|_)handr(_|$)/i.test(b.name) || /right.*hand/i.test(b.name));
 
@@ -553,112 +486,18 @@ const BodyIdleController = {
       this.bones.handL = handByNameL || null;
       this.bones.handR = handByNameR || null;
     } else {
-      // 2) fallback: по близости к плечам (надёжнее, чем X)
-      const shL = this.bones.shoulderL;
-      const shR = this.bones.shoulderR;
-
-      if (shL && shR && hands.length >= 2) {
-        const pShL = new THREE.Vector3(); shL.getWorldPosition(pShL);
-        const pShR = new THREE.Vector3(); shR.getWorldPosition(pShR);
-
-        const scored = hands.map(h => {
-          const p = new THREE.Vector3(); h.getWorldPosition(p);
-          return { h, dL: p.distanceTo(pShL), dR: p.distanceTo(pShR) };
-        });
-
-        scored.sort((a, b) => a.dL - b.dL);
-        this.bones.handL = scored[0].h;
-
-        scored.sort((a, b) => a.dR - b.dR);
-        this.bones.handR = scored[0].h;
-
-        // safety fallback
-        if (this.bones.handL === this.bones.handR) {
-          const hlr = pickLRByX(hands);
-          this.bones.handL = hlr.L;
-          this.bones.handR = hlr.R;
-        }
-      } else {
-        const hlr = pickLRByX(hands);
-        this.bones.handL = hlr.L;
-        this.bones.handR = hlr.R;
-      }
+      const hlr = pickLRByX(hands);
+      this.bones.handL = hlr.L;
+      this.bones.handR = hlr.R;
     }
 
-
-
-    // --- shoulders ---
-    const shoulders = pickAll(["shoulder"]);
-    const slr = pickLRByX(shoulders);
-    this.bones.shoulderL = slr.L;
-    this.bones.shoulderR = slr.R;
-
-    // --- upperArm / foreArm: пробуем по имени, а если нет — поднимемся от кисти вверх по родителям ---
-    const upperArms = pickAll(["upperarm", "uparm", "arm_01", "arm01", "leftarm", "rightarm", "arm"]);
-    const foreArms  = pickAll(["forearm", "loarm", "lowerarm", "arm_02", "arm02"]);
-
-    const ualr = pickLRByX(upperArms.filter(b => !norm(b.name).includes("shoulder")));
-    const falr = pickLRByX(foreArms);
-
-    this.bones.upperArmL = ualr.L;
-    this.bones.upperArmR = ualr.R;
-    this.bones.foreArmL  = falr.L;
-    this.bones.foreArmR  = falr.R;
-
-    const climb = (fromBone, stopAt = 6) => {
-      let b = fromBone;
-      for (let i = 0; i < stopAt && b; i++) {
-        const n = norm(b.name);
-        if (n.includes("forearm") || n.includes("lowerarm") || n.includes("loarm") || n.includes("arm_02") || n.includes("arm02")) {
-          return { type: "forearm", bone: b };
-        }
-        if (n.includes("upperarm") || n.includes("uparm") || n.includes("arm_01") || n.includes("arm01") || (n.includes("arm") && !n.includes("hand") && !n.includes("shoulder"))) {
-          return { type: "upperarm", bone: b };
-        }
-        if (n.includes("shoulder")) {
-          return { type: "shoulder", bone: b };
-        }
-        b = b.parent;
-        if (!b?.isBone) break;
-      }
-      return null;
-    };
-
-    // если upper/fore не нашлись по имени — берём по цепочке от кистей
-    if (!this.bones.foreArmL && this.bones.handL) {
-      let b = this.bones.handL.parent;
-      for (let i = 0; i < 6 && b?.isBone; i++) {
-        const n = norm(b.name);
-        if (n.includes("arm") && !n.includes("hand") && !n.includes("shoulder")) { this.bones.foreArmL = b; break; }
-        b = b.parent;
-      }
-    }
-    if (!this.bones.foreArmR && this.bones.handR) {
-      let b = this.bones.handR.parent;
-      for (let i = 0; i < 6 && b?.isBone; i++) {
-        const n = norm(b.name);
-        if (n.includes("arm") && !n.includes("hand") && !n.includes("shoulder")) { this.bones.foreArmR = b; break; }
-        b = b.parent;
-      }
-    }
-
-    // ещё один уровень вверх = upperArm
-    if (!this.bones.upperArmL && this.bones.foreArmL?.parent?.isBone) this.bones.upperArmL = this.bones.foreArmL.parent;
-    if (!this.bones.upperArmR && this.bones.foreArmR?.parent?.isBone) this.bones.upperArmR = this.bones.foreArmR.parent;
-    // --- prefer deform bones (avoid track/pole/twist helpers) ---
+    // prefer deform bones
     this.bones.shoulderL = preferDeform(this.bones.shoulderL);
     this.bones.shoulderR = preferDeform(this.bones.shoulderR);
+    this.bones.handL = preferDeform(this.bones.handL);
+    this.bones.handR = preferDeform(this.bones.handR);
 
-    this.bones.upperArmL = preferDeform(this.bones.upperArmL);
-    this.bones.upperArmR = preferDeform(this.bones.upperArmR);
-
-    this.bones.foreArmL  = preferDeform(this.bones.foreArmL);
-    this.bones.foreArmR  = preferDeform(this.bones.foreArmR);
-
-    this.bones.handL     = preferDeform(this.bones.handL);
-    this.bones.handR     = preferDeform(this.bones.handR);
-    
-    // --- FIX arm chain for stretch rigs: hand -> forearm -> upperarm (avoid duplicates) ---
+    // resolve forearm/upperarm from hand chain (stretch-safe)
     const upNonHelper = (b, steps = 10) => {
       let x = b;
       for (let i = 0; i < steps && x; i++) {
@@ -671,15 +510,9 @@ const BodyIdleController = {
     const resolveArmFromHand = (hand) => {
       if (!hand) return { fore: null, upper: null };
 
-      // forearm = first non-helper parent
-      let fore = hand.parent;
-      fore = upNonHelper(fore);
+      let fore = upNonHelper(hand.parent);
+      let upper = upNonHelper(fore?.parent || null);
 
-      // upperarm = first non-helper parent of forearm
-      let upper = fore?.parent || null;
-      upper = upNonHelper(upper);
-
-      // safety
       if (upper === fore) upper = null;
       if (fore === hand) fore = null;
 
@@ -689,21 +522,22 @@ const BodyIdleController = {
     const L = resolveArmFromHand(this.bones.handL);
     const R = resolveArmFromHand(this.bones.handR);
 
-    // переопределяем тем, что реально в иерархии (это важнее имён)
-    if (L.fore) this.bones.foreArmL = L.fore;
-    if (L.upper) this.bones.upperArmL = L.upper;
+    this.bones.foreArmL = preferDeform(L.fore);
+    this.bones.foreArmR = preferDeform(R.fore);
 
-    if (R.fore) this.bones.foreArmR = R.fore;
-    if (R.upper) this.bones.upperArmR = R.upper;
+    // upperArm на этом риге часто helper/общий контроллер — оставляем, но НЕ используем в update
+    this.bones.upperArmL = preferDeform(L.upper);
+    this.bones.upperArmR = preferDeform(R.upper);
 
-    // финальная защита от дублей (самая частая причина "сломанных" запястий)
+    // финальная защита от дублей
     if (this.bones.upperArmL === this.bones.foreArmL) this.bones.upperArmL = null;
     if (this.bones.upperArmR === this.bones.foreArmR) this.bones.upperArmR = null;
 
-
     this.baseQ.clear();
-    Object.values(this.bones).forEach(b => { if (b) this.baseQ.set(b.uuid, b.quaternion.clone()); });
-    
+    Object.values(this.bones).forEach(b => {
+      if (b) this.baseQ.set(b.uuid, b.quaternion.clone());
+    });
+
     console.groupCollapsed("REI BODY RIG (auto v2)");
     Object.entries(this.bones).forEach(([k, v]) => console.log(`${k}:`, v?.name || "no"));
     console.groupEnd();
@@ -721,13 +555,11 @@ const BodyIdleController = {
     if (!base) return;
 
     const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(dx, dy, dz, "XYZ"));
-    const target = base.clone().multiply(dq); // base + delta
-
-    // плавно “подмешиваем” кости в позу
+    const target = base.clone().multiply(dq);
     bone.quaternion.slerp(target, THREE.MathUtils.clamp(alpha, 0, 1));
   },
 
-    update(delta, reiState, phase) {
+  update(delta, reiState, phase) {
     const mode = reiState?.mode || "idle";
     const energy = (typeof reiState?.energy === "number") ? reiState.energy : 0.6;
 
@@ -746,7 +578,7 @@ const BodyIdleController = {
     const poseAlpha = this.cfg.poseBase * this.w.pose;
 
     // ---------- helpers: accumulate deltas per bone ----------
-    const acc = new Map(); // uuid -> {x,y,z}
+    const acc = new Map(); // uuid -> {x,y,z,bone}
 
     const add = (bone, dx, dy, dz) => {
       if (!bone) return;
@@ -762,49 +594,49 @@ const BodyIdleController = {
       }
     };
 
-    // ---------- RELAX POSE ----------
+    // ---------- RELAX POSE (вариант 1: плечи + локоть) ----------
     const r = this.cfg.relax;
 
     add(this.bones.shoulderL, r.shoulder.x, r.shoulder.y, +r.shoulder.z);
-    add(this.bones.shoulderR, r.shoulder.x, -r.shoulder.y, -r.shoulder.z);
+    add(this.bones.shoulderR, r.shoulder.x, r.shoulder.y, -r.shoulder.z);
 
-    add(this.bones.upperArmL, r.upperArm.x, r.upperArm.y, +r.upperArm.z);
-    add(this.bones.upperArmR, r.upperArm.x, -r.upperArm.y, -r.upperArm.z);
+    // foreArm — только bend (X). Никаких y/z.
+    add(this.bones.foreArmL, r.foreArm.x, 0.0, 0.0);
+    add(this.bones.foreArmR, r.foreArm.x, 0.0, 0.0);
 
+    // применяем relax отдельно (зависит от poseAlpha)
+    applyAll(poseAlpha);
 
-    if (this.bones.foreArmL && this.bones.foreArmL !== this.bones.upperArmL) {
-      add(this.bones.foreArmL, r.foreArm.x, r.foreArm.y, +r.foreArm.z);
-    }
-    if (this.bones.foreArmR && this.bones.foreArmR !== this.bones.upperArmR) {
-      add(this.bones.foreArmR, r.foreArm.x, -r.foreArm.y, -r.foreArm.z);
-    }
+    // ---------- BODY IDLE (живость тела) ----------
+    acc.clear();
 
-
-    // ---------- BODY IDLE ----------
     const t = (phase || 0) * this.w.speed;
     const breath = Math.sin(t * 1.15);
     const swayA = Math.sin(t * 0.55 + 1.3);
     const swayB = Math.sin(t * 0.85 + 0.2);
 
-    const idle = this.cfg.idle;
+    const idleCfg = this.cfg.idle;
     const amp = this.w.amp;
 
     // chest/spine breathing + sway
-    add(this.bones.chest, idle.breathX * breath * amp, 0, 0);
-    add(this.bones.spine, idle.breathX * breath * amp * 0.55, 0, 0);
+    add(this.bones.chest, idleCfg.breathX * breath * amp, 0, 0);
+    add(this.bones.spine, idleCfg.breathX * breath * amp * 0.55, 0, 0);
 
-    add(this.bones.chest, 0, idle.swayY * swayA * amp, idle.swayZ * swayB * amp);
-    add(this.bones.spine, 0, idle.swayY * swayA * amp * 0.55, idle.swayZ * swayB * amp * 0.55);
+    add(this.bones.chest, 0, idleCfg.swayY * swayA * amp, idleCfg.swayZ * swayB * amp);
+    add(this.bones.spine, 0, idleCfg.swayY * swayA * amp * 0.55, idleCfg.swayZ * swayB * amp * 0.55);
 
-    // micro shoulder float — ТЕПЕРЬ НЕ ПЕРЕТИРАЕТ relax, а ДОБАВЛЯЕТСЯ
-    const shZ = idle.shoulderZ * Math.sin(t * 1.6 + 2.2) * amp;
+    // hips weight shift (перенос веса)
+    const hipA = Math.sin(t * 0.55 + 0.8);
+    const hipB = Math.sin(t * 0.85 + 2.0);
+    add(this.bones.hips, 0, idleCfg.hipsY * hipA * amp, idleCfg.hipsZ * hipB * amp);
+
+    // micro shoulder float
+    const shZ = idleCfg.shoulderZ * Math.sin(t * 1.6 + 2.2) * amp;
     add(this.bones.shoulderL, 0, 0, +shZ);
     add(this.bones.shoulderR, 0, 0, -shZ);
 
-    // применяем ОДИН раз: руки/плечи с poseAlpha, спина/грудь тоже норм
-    // (poseAlpha влияет на силу “позы”, но idle тоже должен жить — поэтому просто домножим)
-    // чтобы idle не пропал в thinking, он уже масштабируется amp-ом выше.
-    applyAll(poseAlpha);
+    // применяем body-idle отдельно (он уже масштабируется amp-ом по режимам)
+    applyAll(1.0);
   }
 };
 
@@ -864,7 +696,8 @@ const ReiController = {
     // дыхание
     model.position.y =
       basePose.y + Math.sin(idlePhase * idle.breathSpeed) * idle.breathPower * e;
-      // --- idle sway (перенос веса, очень мягко) ---
+
+    // --- idle sway (перенос веса, очень мягко) ---
     const sway = 0.028 * (0.35 + 0.65 * e);
     const swayY = Math.sin(idlePhase * 0.7) * sway;
     const swayX = Math.sin(idlePhase * 0.5 + 1.2) * sway * 0.35;
@@ -936,7 +769,7 @@ const ReiController = {
       targetPitch = 0.02 * PITCH_SIGN;
     }
 
-    // микро-качания (очень мягко)
+    // микро-качания
     const micro = 0.010 * (0.35 + 0.65 * e);
     const microYaw = Math.sin(idlePhase * 1.6) * micro;
     const microPitch = Math.sin(idlePhase * 2.1) * micro * 0.7;
@@ -1014,56 +847,50 @@ loader.load('./models/rei.glb', (gltf) => {
   reiModel = gltf.scene;
 
   reiModel.traverse((o) => {
-  if (o.isMesh) {
-    o.castShadow = true;
-    o.receiveShadow = false;
-  }
-});
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = false;
+    }
+  });
 
   reiModel.scale.setScalar(2);
   reiModel.position.set(0, basePose.y, 0);
   reiModel.rotation.set(0, basePose.rotY, 0);
   scene.add(reiModel);
-  
-  // --- AUTO FLOOR + AUTO SHADOW FIT (пол по ногам + нормальная тень) ---
-{
-  const box = new THREE.Box3().setFromObject(reiModel);
-  const center = new THREE.Vector3();
-  const size = new THREE.Vector3();
-  box.getCenter(center);
-  box.getSize(size);
 
-  // Пол прямо под ногами
-  const floorY = box.min.y - 0.01;
-  floor.position.y = floorY;
+  // --- AUTO FLOOR + AUTO SHADOW FIT ---
+  {
+    const box = new THREE.Box3().setFromObject(reiModel);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    box.getCenter(center);
+    box.getSize(size);
 
-  // ВАЖНО: не двигаем reiModel.position.y (его потом перезапишет ReiController.apply),
-  // поэтому поднимаем БАЗУ:
-  basePose.y += (floorY - box.min.y);
-  reiModel.position.y = basePose.y;
+    const floorY = box.min.y - 0.01;
+    floor.position.y = floorY;
 
-  // Пересчёт после сдвига
-  const box2 = new THREE.Box3().setFromObject(reiModel);
-  box2.getCenter(center);
-  box2.getSize(size);
+    basePose.y += (floorY - box.min.y);
+    reiModel.position.y = basePose.y;
 
-  // Светит в центр модели
-  dirLight.target.position.copy(center);
+    const box2 = new THREE.Box3().setFromObject(reiModel);
+    box2.getCenter(center);
+    box2.getSize(size);
 
-  // Подгоняем shadow-frustum под размеры (чтобы тень не была обрезанной/странной)
-  const r = Math.max(size.x, size.z) * 0.9;
-  dirLight.shadow.camera.left = -r;
-  dirLight.shadow.camera.right = r;
-  dirLight.shadow.camera.top = r;
-  dirLight.shadow.camera.bottom = -r;
+    dirLight.target.position.copy(center);
 
-  dirLight.shadow.camera.near = 0.1;
-  dirLight.shadow.camera.far = 30;
+    const r = Math.max(size.x, size.z) * 0.9;
+    dirLight.shadow.camera.left = -r;
+    dirLight.shadow.camera.right = r;
+    dirLight.shadow.camera.top = r;
+    dirLight.shadow.camera.bottom = -r;
 
-  dirLight.shadow.mapSize.set(2048, 2048);
-  dirLight.shadow.bias = -0.00025;
-  dirLight.shadow.normalBias = 0.02;
-}
+    dirLight.shadow.camera.near = 0.1;
+    dirLight.shadow.camera.far = 30;
+
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.bias = -0.00025;
+    dirLight.shadow.normalBias = 0.02;
+  }
 
   reiHead = findBoneByName(reiModel, ["head", "skull", "голов", "head_"]);
   reiNeck = findBoneByName(reiModel, ["neck", "spine2", "шея", "c_p_neck"]);
@@ -1091,9 +918,8 @@ function animate() {
   if (reiModel) {
     ReiController.update(delta);
     ReiController.apply(reiModel);
-    BodyIdleController.update(delta, ReiController.state, ReiController.state.idlePhase);
- 
 
+    BodyIdleController.update(delta, ReiController.state, ReiController.state.idlePhase);
     BoneFaceController.update(delta, ReiController.state);
   }
 
