@@ -190,8 +190,14 @@ input?.addEventListener("keydown", e => {
 ======================= */
 const hudMode = document.getElementById("hud-mode");
 const hudMood = document.getElementById("hud-mood");
+const hudEnergy = document.getElementById("hud-energy");
 
 onReiStateChange((state) => {
   if (hudMode) hudMode.textContent = String(state.mode || "idle").toUpperCase();
   if (hudMood) hudMood.textContent = String(state.mood || "calm").toUpperCase();
+
+  if (hudEnergy) {
+    const e = Math.max(0, Math.min(1, Number(state.energy ?? 0.6)));
+    hudEnergy.style.width = `${Math.round(e * 100)}%`;
+  }
 });
