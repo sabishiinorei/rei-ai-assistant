@@ -1,10 +1,12 @@
 :root {
-  --bg: #0b1a22;
-  --panel: rgba(20, 35, 45, 0.88);
-  --border: rgba(150, 200, 220, 0.35);
-  --rei: #b9e3ff;
+  --bg: #08141c;
+  --panel: rgba(16, 30, 40, 0.82);
+  --border: rgba(185, 230, 255, 0.28);
+
+  --rei: #d3f0ff;
   --user: #ffffff;
-  --accent: #a8d8ff;
+
+  --accent: #bfe9ff;
 }
 
 * {
@@ -12,29 +14,43 @@
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 
-html, body {
-  margin: 0;
-  height: 100%;
+html {
+  background-color: #050a12; /* анти-белый фрейм */
 }
 
 body {
-  background-color: #050a12;
+  background-color: #0d2345; /* анти-белый фрейм */
+  background-image: url("bg.PNG");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
   display: flex;
   justify-content: center;
   align-items: center;
   color: var(--user);
 }
 
-/* body {
-  background: url("bg.jpg") center / cover no-repeat fixed;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--user);
-} */
+body::before {
+  z-index: 0;
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at 60% 30%,
+    rgba(140,200,255,0.18),
+    rgba(5,10,15,0.85) 70%
+  );
+  pointer-events: none;
+}
 
 /* app */
 .app {
+
+position: relative;
+z-index: 1;
+
   width: min(92vw, 420px);
   height: 90vh;
 
@@ -89,32 +105,17 @@ body {
   background: url("rei.png") center / cover no-repeat;
   background-color: var(--bg);
 
-  box-shadow: 0 0 22px rgba(150,200,255,0.9);
+  box-shadow: 0 0 18px rgba(160,210,255,0.55);
   animation: breathe 4s ease-in-out infinite;
   transition: all 0.4s ease;
 }
 
-/* отключаем псевдо-глаз */
-.avatar::after {
-  display: none;
-}
+.avatar::after { display: none; }
 
-/* эмоции через glow */
-.avatar.calm {
-  filter: hue-rotate(0deg);
-}
-
-.avatar.happy {
-  box-shadow: 0 0 26px rgba(180,255,230,1);
-}
-
-.avatar.caring {
-  box-shadow: 0 0 26px rgba(255,210,240,1);
-}
-
-.avatar.jealous {
-  box-shadow: 0 0 28px rgba(255,120,120,1);
-}
+.avatar.calm { filter: hue-rotate(0deg); }
+.avatar.happy { box-shadow: 0 0 26px rgba(180,255,230,1); }
+.avatar.caring { box-shadow: 0 0 26px rgba(255,210,240,1); }
+.avatar.jealous { box-shadow: 0 0 28px rgba(255,120,120,1); }
 
 /* chat */
 .chat {
@@ -125,39 +126,64 @@ body {
   padding: 12px;
   overflow-y: auto;
   margin-bottom: 12px;
+  scroll-behavior: smooth;
+
+  /* важно: детерминированные пузыри */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-/* message */
+/* message bubble (КЛЮЧЕВО: inline-flex) */
 .message {
-  max-width: 85%;
-  padding: 13px 14px;
-  margin-bottom: 10px;
-  border-radius: 14px;
+  display: inline-flex;       /* ✅ фикс “первый пузырь огромный/пустой” */
+  flex-direction: column;
+  align-self: flex-start;
+
+  max-width: 72%;
+  width: auto;
+  flex: 0 0 auto;
+
+  padding: 12px 14px;
+  margin: 10px 0;
+  border-radius: 16px;
 
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.45;
+
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 
   opacity: 0;
-  transform: translateY(10px);
-  animation: messageIn 0.35s ease forwards;
+  transform: translateY(8px);
+  animation: messageIn 0.25s ease forwards;
+}
+
+/* явно фиксируем .text чтобы не было странных растяжений */
+.message .text {
+  display: block;
 }
 
 .rei {
-  background: rgba(170,220,255,0.15);
-  border: 1px solid rgba(170,220,255,0.35);
+  align-self: flex-start;
+  background: rgba(190,235,255,0.14);
+  border: 1px solid rgba(190,235,255,0.22);
   color: var(--rei);
+  box-shadow: 0 0 18px rgba(140,210,255,0.08);
 }
 
 .user {
-  margin-left: auto;
-  background: rgba(255,255,255,0.15);
-  border: 1px solid rgba(255,255,255,0.25);
+  align-self: flex-end;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: var(--user);
 }
 
 .time {
+  margin-top: 6px;
   font-size: 11px;
-  opacity: 0.6;
-  margin-top: 4px;
+  opacity: 0.55;
   text-align: right;
 }
 
@@ -165,28 +191,47 @@ body {
 .input-area {
   display: flex;
   gap: 8px;
+  align-items: flex-end;
 }
 
-input {
+textarea#input {
   flex: 1;
   font-size: 16px;
   padding: 12px 14px;
   border-radius: 12px;
   border: none;
   background: rgba(0,0,0,0.4);
-  color: white;
+  color: rgba(255,255,255,0.88);
   outline: none;
+
+  resize: none;
+  overflow: hidden;
+  min-height: 44px;
+  max-height: 140px;
+  line-height: 1.35;
 }
 
-button {
-  padding: 0 18px;
+textarea#input::placeholder {
+  color: rgba(255,255,255,0.45);
+}
+
+button#send {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   border-radius: 12px;
+
   font-size: 16px;
   border: none;
-  background: var(--accent);
-  color: #001018;
+  background: rgba(200,220,235,0.9);
+  color: rgba(0,16,24,0.85);
+
   font-weight: 600;
   cursor: pointer;
+
+  padding: 0;
+  line-height: 44px;
+  transform: none; /* чтобы не “прыгала” */
 }
 
 /* footer */
@@ -199,10 +244,7 @@ button {
 
 /* animations */
 @keyframes messageIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes breathe {
@@ -228,6 +270,7 @@ button {
   50% { opacity: 0.4; }
 }
 
+/* 3D */
 #rei-3d-container {
   position: fixed;
   right: 40px;
@@ -235,18 +278,46 @@ button {
   width: 360px;
   height: 640px;
   pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,0.45));
 }
 
-/* скрываем на маленьких экранах */
+/* 3D витрина */
+#rei-3d-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 18px;
+  background: radial-gradient(
+    80% 70% at 50% 55%,
+    rgba(0,0,0,0) 45%,
+    rgba(0,0,0,0.40) 100%
+  );
+}
+
+#rei-3d-container::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 55% 85%,
+    rgba(165,225,255,0.22),
+    rgba(165,225,255,0) 55%
+  );
+  filter: blur(10px);
+  opacity: 0.85;
+}
+
+/* mobile 3D */
 @media (max-width: 768px) {
   #rei-3d-container {
     right: 50%;
     bottom: 10px;
     transform: translateX(50%);
-
     width: 260px;
     height: 480px;
-
     z-index: 5;
     opacity: 0.9;
   }
@@ -267,14 +338,15 @@ button {
   padding: 14px 16px;
   border-radius: 12px;
 
-  background: rgba(10, 25, 35, 0.75);
-  border: 1px solid rgba(160, 220, 255, 0.35);
+  background: rgba(10, 22, 30, 0.62);
+  border: 1px solid rgba(175, 230, 255, 0.22);
 
   box-shadow:
-    0 0 25px rgba(120,180,255,0.35),
-    inset 0 0 18px rgba(120,180,255,0.08);
+    0 0 18px rgba(120,180,255,0.22),
+    inset 0 0 14px rgba(120,180,255,0.06);
 
-  animation: evaPulse 5s ease-in-out infinite;
+  backdrop-filter: blur(8px) saturate(140%);
+  animation: evaPulse 6s ease-in-out infinite;
 }
 
 .eva-title {
@@ -293,36 +365,24 @@ button {
   font-size: 12px;
 }
 
-.label {
-  opacity: 0.6;
-}
-
-.value {
-  font-weight: 600;
-  color: #d6f1ff;
-}
-
-.value.online {
-  color: #9fffb0;
-}
+.label { opacity: 0.6; }
+.value { font-weight: 600; color: #d6f1ff; }
+.value.online { color: #9fffb0; }
 
 .energy-bar {
   width: 90px;
   height: 6px;
-  border-radius: 6px;
+  border-radius: 999px;
   background: rgba(255,255,255,0.15);
   overflow: hidden;
 }
 
 .energy-fill {
+  border-radius: 999px;
   height: 100%;
   width: 60%;
-  background: linear-gradient(
-    90deg,
-    #9fdcff,
-    #e4f6ff
-  );
-  box-shadow: 0 0 10px rgba(160,220,255,0.9);
+  background: linear-gradient(90deg, #9fdcff, #e4f6ff);
+  box-shadow: 0 0 8px rgba(160,220,255,0.55);
   transition: width 0.6s ease;
 }
 
@@ -333,31 +393,9 @@ button {
   text-align: right;
 }
 
-/* subtle pulse */
-@keyframes evaPulse {
-  0%,100% {
-    box-shadow:
-      0 0 25px rgba(120,180,255,0.35),
-      inset 0 0 18px rgba(120,180,255,0.08);
-  }
-  50% {
-    box-shadow:
-      0 0 40px rgba(120,180,255,0.55),
-      inset 0 0 28px rgba(120,180,255,0.15);
-  }
-}
+/* inner + corners + scan */
+.eva-inner { position: relative; z-index: 2; }
 
-/* =========================================================
-   EVA HUD — EXTENDED (NON-DESTRUCTIVE ADDITION)
-   ========================================================= */
-
-/* внутренний слой для глубины */
-.eva-inner {
-  position: relative;
-  z-index: 2;
-}
-
-/* углы EVA */
 .eva-corner {
   position: absolute;
   width: 14px;
@@ -366,46 +404,21 @@ button {
   opacity: 0.85;
 }
 
-.eva-corner.tl {
-  top: -2px;
-  left: -2px;
-  border-right: none;
-  border-bottom: none;
-}
+.eva-corner.tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.eva-corner.tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+.eva-corner.bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+.eva-corner.br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
-.eva-corner.tr {
-  top: -2px;
-  right: -2px;
-  border-left: none;
-  border-bottom: none;
-}
-
-.eva-corner.bl {
-  bottom: -2px;
-  left: -2px;
-  border-right: none;
-  border-top: none;
-}
-
-.eva-corner.br {
-  bottom: -2px;
-  right: -2px;
-  border-left: none;
-  border-top: none;
-}
-
-/* декоративные EVA-линии */
 .eva-frame::before,
 .eva-frame::after {
   content: "";
   position: absolute;
   inset: 6px;
-  border: 1px dashed rgba(150,200,255,0.15);
+  border: 1px dashed rgba(150,200,255,0.10);
   border-radius: 10px;
   pointer-events: none;
 }
 
-/* технический текст */
 .eva-tech {
   margin-top: 10px;
   font-size: 9px;
@@ -415,24 +428,28 @@ button {
   color: #b9e3ff;
 }
 
-/* лёгкий сканирующий эффект */
-.eva-frame::after {
-  animation: evaScan 6s linear infinite;
-}
+.eva-frame::after { animation: evaScan 6s linear infinite; }
 
 @keyframes evaScan {
-  0% {
-    opacity: 0.15;
+  0% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+  100% { opacity: 0.15; }
+}
+
+@keyframes evaPulse {
+  0%,100% {
+    box-shadow:
+      0 0 18px rgba(120,180,255,0.22),
+      inset 0 0 14px rgba(120,180,255,0.06);
   }
   50% {
-    opacity: 0.35;
-  }
-  100% {
-    opacity: 0.15;
+    box-shadow:
+      0 0 28px rgba(120,180,255,0.38),
+      inset 0 0 22px rgba(120,180,255,0.10);
   }
 }
 
-/* адаптация HUD под маленькие экраны */
+/* HUD mobile */
 @media (max-width: 768px) {
   #eva-hud {
     left: 50%;
@@ -440,37 +457,4 @@ button {
     transform: translateX(-50%);
     opacity: 0.85;
   }
-}
-
-@keyframes evaBackground {
-  0% {
-    transform: scale(1) translate(0, 0);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: scale(1.06) translate(-1%, -2%);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1) translate(0, 0);
-    opacity: 0.7;
-  }
-}
-
-#bg-video {
-  position: fixed;
-  inset: 0;
-
-  width: 100%;
-  height: 100%;
-
-  object-fit: cover;
-
-  z-index: -5;
-  pointer-events: none;
-
-  opacity: 0.35;
-  filter: blur(1px) saturate(1.1);
 }

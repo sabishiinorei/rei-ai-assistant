@@ -5,14 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rei</title>
 
-  <link rel="stylesheet" href="style.css" />
+  <!-- cache-bust чтобы браузер точно подхватил новые стили -->
+  <link rel="stylesheet" href="style.css?v=1" />
   <link rel="shortcut icon" href="logo.png" type="image/x-icon">
 </head>
 <body>
-
-  <video id="bg-video" autoplay muted loop playsinline>
-    <source src="bg-vid.mp4" type="video/mp4">
-  </video>
 
 <div class="app">
 
@@ -34,7 +31,7 @@
   </div>
 
   <div class="input-area">
-    <input id="input" placeholder="Написать Рей…" />
+    <textarea id="input" rows="1" placeholder="Написать Рей…"></textarea>
     <button id="send">➤</button>
   </div>
 
@@ -44,8 +41,8 @@
 <!-- reiState -->
 <script type="module" src="./reiState.js"></script>
 
-<!-- ТОЛЬКО UI -->
-<script type="module" src="script.js"></script>
+<!-- UI -->
+<script type="module" src="script.js?v=1"></script>
 
 <!-- Контейнер 3D модели -->
 <div id="rei-3d-container"></div>
@@ -53,17 +50,15 @@
 <!-- 3D Модель -->
 <script type="module" src="./rei3d.js"></script>
 
-<!-- EVA HUD (TEMP VISUAL LAYER) -->
+<!-- EVA HUD -->
 <div id="eva-hud">
   <div class="eva-frame">
 
-    <!-- EVA CORNERS -->
     <div class="eva-corner tl"></div>
     <div class="eva-corner tr"></div>
     <div class="eva-corner bl"></div>
     <div class="eva-corner br"></div>
 
-    <!-- INNER LAYER -->
     <div class="eva-inner">
 
       <div class="eva-title">REI - EVA INTERFACE</div>
@@ -87,7 +82,6 @@
 
       <div class="eva-footer">CORE LINK :: STABLE</div>
 
-      <!-- TECH TEXT -->
       <div class="eva-tech">
         NODE: EVA-01<br>
         CORE: REI.AI<br>

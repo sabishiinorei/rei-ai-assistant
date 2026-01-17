@@ -7,9 +7,7 @@ const avatar = document.getElementById("avatar");
 
 const API_URL = "/chat";
 
-/* =======================
-   ID пользователя
-======================= */
+/* ID пользователя */
 let userId = localStorage.getItem("rei_user_id");
 if (!userId) {
   userId = crypto.randomUUID();
@@ -17,44 +15,50 @@ if (!userId) {
 }
 console.log("FRONT USER ID:", userId);
 
-/* =======================
-   Время сообщений
-======================= */
+/* Время сообщений */
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-/* =======================
-   Эмоции аватара (CSS)
-======================= */
+/* Эмоции аватара (CSS) */
 function setEmotion(type) {
   if (!avatar) return;
   avatar.className = "avatar " + type;
 }
 
-/* =======================
-   Добавление сообщений
-======================= */
+/* Добавление сообщений (безопасно) */
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
 
-  div.innerHTML = `
-    <div class="text">${text}</div>
-    <div class="time">${getTime()}</div>
-  `;
+  const textEl = document.createElement("div");
+  textEl.className = "text";
+  textEl.textContent = text;
+
+  const timeEl = document.createElement("div");
+  timeEl.className = "time";
+  timeEl.textContent = getTime();
+
+  div.appendChild(textEl);
+  div.appendChild(timeEl);
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   return div;
 }
 
-/* =======================
-   Авто-focus (input/cursor/chat)
-======================= */
+/* Авто-рост textarea */
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 140) + "px";
+}
+input?.addEventListener("input", () => autoGrow(input));
+autoGrow(input);
+
+/* Авто-focus (input/cursor/chat) */
 let lastMouseMoveAt = 0;
 let lastTypingAt = 0;
-let focusTick = null;
 
 function setFocusSmart(nextFocus) {
   const cur = getReiState?.() || {};
@@ -72,7 +76,6 @@ input?.addEventListener("focus", () => {
 });
 
 input?.addEventListener("blur", () => {
-  // при уходе из поля — пусть смотрит в чат
   setFocusSmart("chat");
 });
 
@@ -81,34 +84,24 @@ input?.addEventListener("input", () => {
   setFocusSmart("input");
 });
 
-focusTick = setInterval(() => {
+setInterval(() => {
   const now = Date.now();
 
-  // приоритет 1: если недавно печатали
   if (now - lastTypingAt < 1200) {
     setFocusSmart("input");
     return;
   }
 
-  // приоритет 2: если недавно двигали мышь
   if (now - lastMouseMoveAt < 650) {
-    // если фокус реально на input — не перебиваем
-    if (document.activeElement === input) {
-      setFocusSmart("input");
-    } else {
-      setFocusSmart("cursor");
-    }
+    if (document.activeElement === input) setFocusSmart("input");
+    else setFocusSmart("cursor");
     return;
   }
 
-  // иначе: чат
   setFocusSmart("chat");
 }, 120);
 
-/* =======================
-   Лёгкая эвристика “милоты”
-   (чтобы happy не было просто так)
-======================= */
+/* Лёгкая эвристика “милоты” */
 function guessMoodByText(text) {
   const t = (text || "").toLowerCase();
 
@@ -126,19 +119,17 @@ function guessMoodByText(text) {
   return "focused";
 }
 
-/* =======================
-   Основная логика чата
-======================= */
+/* Основная логика чата */
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // Пользователь написал → Рей думает + настроение по тексту
   const mood = guessMoodByText(text);
   setReiState({ mode: "thinking", mood });
 
   addMessage(text, "user");
   input.value = "";
+  autoGrow(input);
 
   if (window.CommandBus) {
     window.CommandBus.emit("command", { text });
@@ -156,17 +147,12 @@ async function sendMessage() {
     const data = await res.json();
     thinkingMsg.querySelector(".text").textContent = data.reply || "...";
 
-    // Рей говорит
     setReiState({ mode: "speaking" });
     setEmotion(mood === "caring" ? "caring" : mood === "happy" ? "happy" : "calm");
 
-    // Возврат в ожидание (НЕ делаем happy автоматически)
     setTimeout(() => {
       const cur = getReiState?.() || {};
-      setReiState({
-        mode: "idle",
-        mood: cur.mood || "calm"
-      });
+      setReiState({ mode: "idle", mood: cur.mood || "calm" });
       setEmotion(cur.mood === "caring" ? "caring" : cur.mood === "happy" ? "happy" : "calm");
     }, 900);
 
@@ -177,27 +163,58 @@ async function sendMessage() {
   }
 }
 
-/* =======================
-   События
-======================= */
+/* События */
 button?.addEventListener("click", sendMessage);
-input?.addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
+
+// Enter — отправить, Shift+Enter — новая строка
+input?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
 });
 
-/* =======================
-   HUD (EVA-интерфейс)
-======================= */
+/* HUD (EVA-интерфейс) */
 const hudMode = document.getElementById("hud-mode");
 const hudMood = document.getElementById("hud-mood");
 const hudEnergy = document.getElementById("hud-energy");
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function energyMoodModeMultiplier(state) {
+  const mood = (state.mood || "calm").toLowerCase();
+  const mode = (state.mode || "idle").toLowerCase();
+
+  let mult = 1.0;
+
+  if (mood === "happy") mult *= 1.10;
+  if (mood === "caring") mult *= 0.98;
+  if (mood === "focused") mult *= 1.05;
+
+  if (mode === "thinking") mult *= 0.92;
+  if (mode === "speaking") mult *= 0.96;
+  if (mode === "idle") mult *= 1.03;
+
+  return mult;
+}
+
+let hudEnergyValue = 0.6;
+function smoothTo(current, target, k = 0.18) {
+  return current + (target - current) * k;
+}
 
 onReiStateChange((state) => {
   if (hudMode) hudMode.textContent = String(state.mode || "idle").toUpperCase();
   if (hudMood) hudMood.textContent = String(state.mood || "calm").toUpperCase();
 
   if (hudEnergy) {
-    const e = Math.max(0, Math.min(1, Number(state.energy ?? 0.6)));
-    hudEnergy.style.width = `${Math.round(e * 100)}%`;
+    const base = clamp01(Number(state.energy ?? 0.6));
+    const mult = energyMoodModeMultiplier(state);
+    const target = clamp01(base * mult);
+
+    hudEnergyValue = smoothTo(hudEnergyValue, target);
+    hudEnergy.style.width = `${Math.round(hudEnergyValue * 100)}%`;
   }
 });
