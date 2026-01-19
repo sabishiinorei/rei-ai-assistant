@@ -1,4 +1,4 @@
-import { setReiState, onReiStateChange, getReiState } from "./reiState.js";
+import { setReiState, onReiStateChange, getReiState, reiEvent, decideOnUserMessage } from "./reiState.js";
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
@@ -125,9 +125,14 @@ async function sendMessage() {
   if (!text) return;
 
   const mood = guessMoodByText(text);
-  setReiState({ mode: "thinking", mood });
+  reiEvent("user_emotion", { mood });
 
   addMessage(text, "user");
+
+  reiEvent("user_message");
+  const decision = decideOnUserMessage();
+  if (decision === "silence") return;
+
   input.value = "";
   autoGrow(input);
 
@@ -135,6 +140,7 @@ async function sendMessage() {
     window.CommandBus.emit("command", { text });
   }
 
+  reiEvent("thinking_start");
   const thinkingMsg = addMessage("Рей думает...", "rei");
 
   try {
@@ -146,20 +152,17 @@ async function sendMessage() {
 
     const data = await res.json();
     thinkingMsg.querySelector(".text").textContent = data.reply || "...";
+    reiEvent("thinking_end");
 
-    setReiState({ mode: "speaking" });
-    setEmotion(mood === "caring" ? "caring" : mood === "happy" ? "happy" : "calm");
-
-    setTimeout(() => {
-      const cur = getReiState?.() || {};
-      setReiState({ mode: "idle", mood: cur.mood || "calm" });
-      setEmotion(cur.mood === "caring" ? "caring" : cur.mood === "happy" ? "happy" : "calm");
-    }, 900);
+    reiEvent("speaking_start");
+    setTimeout(() => reiEvent("speaking_end"), 900);
 
   } catch (e) {
+    reiEvent("thinking_end");
+    reiEvent("speaking_end");
+
     thinkingMsg.querySelector(".text").textContent = "Связь потеряна...";
-    setReiState({ mode: "idle", mood: "caring" });
-    setEmotion("caring");
+    reiEvent("user_emotion", { mood: "caring" });
   }
 }
 
@@ -206,6 +209,17 @@ function smoothTo(current, target, k = 0.18) {
 }
 
 onReiStateChange((state) => {
+
+  if (avatar) {
+  const m = state.mood || "calm";
+  setEmotion(
+    m === "happy" ? "happy" :
+    m === "caring" ? "caring" :
+    m === "focused" ? "focused" :
+    "calm"
+  );
+}
+
   if (hudMode) hudMode.textContent = String(state.mode || "idle").toUpperCase();
   if (hudMood) hudMood.textContent = String(state.mood || "calm").toUpperCase();
 
