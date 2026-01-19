@@ -209,16 +209,15 @@ function smoothTo(current, target, k = 0.18) {
 }
 
 onReiStateChange((state) => {
-
   if (avatar) {
-  const m = state.mood || "calm";
-  setEmotion(
-    m === "happy" ? "happy" :
-    m === "caring" ? "caring" :
-    m === "focused" ? "focused" :
-    "calm"
-  );
-}
+    const m = state.mood || "calm";
+    setEmotion(
+      m === "happy" ? "happy" :
+      m === "caring" ? "caring" :
+      m === "focused" ? "focused" :
+      "calm"
+    );
+  }
 
   if (hudMode) hudMode.textContent = String(state.mode || "idle").toUpperCase();
   if (hudMood) hudMood.textContent = String(state.mood || "calm").toUpperCase();
@@ -232,3 +231,4 @@ onReiStateChange((state) => {
     hudEnergy.style.width = `${Math.round(hudEnergyValue * 100)}%`;
   }
 });
+

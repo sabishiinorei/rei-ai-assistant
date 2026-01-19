@@ -308,30 +308,32 @@ const MOOD_READINESS = {
   happy:   0.35
 };
 
-function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-
-function computeReadiness() {
-  const e = reiState.energy;                 // 0..1
+function computeReadiness(t) {
+  const e = reiState.energy; // 0..1
   const m = reiState.mood;
   const intent = reiState.intent;
 
-  // intent — главный фильтр
-  if (intent === "withdrawn") return 0.05;
-  if (intent === "present")   return 0.25;
-  if (intent === "observing") return 0.35;
-  if (intent === "respond")   return 0.75;
+  // базовая готовность от intent
+  let r =
+    intent === "withdrawn" ? 0.05 :
+    intent === "present"   ? 0.25 :
+    intent === "observing" ? 0.45 :   // было 0.35
+    intent === "respond"   ? 0.75 :
+    0.35;
 
-  // fallback
-  let r = 0.35;
-
-  // энергия — основной ресурс
+  // энергия
   r *= (0.35 + 0.65 * e);
 
-  // настроение — характерная окраска
+  // настроение
   r *= (MOOD_READINESS[m] ?? 0.55) / 0.55;
+
+  // 🔥 главный фикс: свежее сообщение юзера = импульс проявиться
+  const sinceMsg = t - (autopilot.memory.lastUserMessageAt || 0);
+  if (sinceMsg >= 0 && sinceMsg < 1500) r += 0.45;
 
   return clamp01(r);
 }
+
 
 /**
  * Вызывай это при событии "user_message".
@@ -341,7 +343,7 @@ export function decideOnUserMessage() {
   const t = (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (t < decision.lockedUntil) return decision.lastDecision;
 
-  const r = computeReadiness();
+  const r = computeReadiness(t);
 
   // Пороги (можно потом тонко настроить)
   let d = "silence";
