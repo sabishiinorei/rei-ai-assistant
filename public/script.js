@@ -131,7 +131,15 @@ async function sendMessage() {
 
   reiEvent("user_message");
   const decision = decideOnUserMessage();
+
   if (decision === "silence") return;
+
+  if (decision === "reflect") {
+    // без API, без “Рей думает…”, просто мягкий вопрос
+    addMessage(pickReflectLine(text), "rei");
+    return;
+  }
+
 
   input.value = "";
   autoGrow(input);
@@ -165,6 +173,24 @@ async function sendMessage() {
     reiEvent("user_emotion", { mood: "caring" });
   }
 }
+
+function pickReflectLine(text) {
+  const t = (text || "").trim().toLowerCase();
+
+  // если похоже на эмоции/усталость — мягко
+  if (/(устал|тяжело|одиноко|страшно|паник|плохо|больно)/i.test(t)) {
+    return "Я рядом. Ты хочешь, чтобы я просто выслушала, или помочь разложить это по шагам?";
+  }
+
+  // если похоже на задачу/дела — структурно
+  if (/(надо|нужно|сделать|успеть|план|задач|работ|проект)/i.test(t)) {
+    return "Поняла. Что сейчас важнее: быстрый план на 10–15 минут или разобраться глубже и сделать правильно?";
+  }
+
+  // универсально
+  return "Я поняла. Уточни одну вещь: ты хочешь совет, план действий или просто чтобы я была рядом?";
+}
+
 
 /* События */
 button?.addEventListener("click", sendMessage);

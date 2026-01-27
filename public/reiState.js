@@ -8,7 +8,7 @@ export const reiState = {
 
   intent: "observing", // наблюдение
 
-  decision: "silence" // silence | soft_ack | respond
+  decision: "silence" // silence | soft_ack | respond | reflect
 };
 
 const listeners = new Set();
@@ -347,8 +347,13 @@ export function decideOnUserMessage() {
 
   // Пороги (можно потом тонко настроить)
   let d = "silence";
-  if (r > 0.70) d = "respond";
+
+  // ✅ reflect — между soft_ack и respond
+  // “спокойно и заботливо”: сначала уточнить, а не выдавать простыню
+  if (r > 0.78) d = "respond";
+  else if (r > 0.55) d = "reflect";
   else if (r > 0.40) d = "soft_ack";
+
 
   decision.lastDecision = d;
   decision.lockedUntil = t + decision.holdMs;
