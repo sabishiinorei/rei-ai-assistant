@@ -41,6 +41,26 @@
 <!-- reiState -->
 <script type="module" src="./reiState.js"></script>
 
+<!-- alarm -->
+<script type="module">
+  import { onReiStateChange } from "./reiState.js";
+
+  const elMode = document.getElementById("hud-mode");
+  const elMood = document.getElementById("hud-mood");
+  const elEnergy = document.getElementById("hud-energy");
+
+  const up = (s) => {
+    if (elMode) elMode.textContent = String(s.mode || "idle").toUpperCase();
+    if (elMood) elMood.textContent = String(s.mood || "calm").toUpperCase();
+    if (elEnergy) elEnergy.style.width = `${Math.round((s.energy ?? 0.6) * 100)}%`;
+
+    // маленький визуальный акцент для alarm (если хочешь, можно убрать)
+    if (elMode) elMode.classList.toggle("online", s.mode === "alarm");
+  };
+
+  onReiStateChange(up);
+</script>
+
 <!-- UI -->
 <script type="module" src="script.js?v=1"></script>
 
@@ -66,6 +86,11 @@
       <div class="eva-row">
         <span class="label">SYNC STATUS</span>
         <span class="value online">ONLINE</span>
+      </div>
+
+      <div class="eva-row">
+        <span class="label">MODE</span>
+        <span class="value" id="hud-mode">IDLE</span>
       </div>
 
       <div class="eva-row">

@@ -271,11 +271,13 @@ const BoneFaceController = {
 
     let targetFocus = 0.0;
     if (mode === "thinking") targetFocus = 0.34;
+    if (mode === "alarm") targetFocus = Math.max(targetFocus, 0.55);
     if (mood === "focused") targetFocus = Math.max(targetFocus, 0.42);
+
 
     let targetSquint = 0.0;
     if (targetSmile > 0.20) targetSquint = 0.10 + (targetSmile - 0.20) * 0.22;
-
+    if (mode === "alarm") targetSquint = Math.max(targetSmile - 0.10);
     const k = 1 - Math.exp(-12.0 * delta);
     this.w.smile += (targetSmile - this.w.smile) * k;
     this.w.focus += (targetFocus - this.w.focus) * k;
@@ -394,6 +396,7 @@ const BodyIdleController = {
       idle:      { amp: 1.00, speed: 1.00, pose: 1.00 },
       listening: { amp: 0.85, speed: 0.95, pose: 1.03 },
       thinking:  { amp: 0.55, speed: 0.75, pose: 1.07 },
+      alarm:     { amp: 0.40, speed: 0.90, pose: 1.12 },
       speaking:  { amp: 1.15, speed: 1.10, pose: 0.98 }
     },
 
@@ -607,6 +610,10 @@ const ReiController = {
 
     const DEADZONE = 0.12;
 
+    if (mode === "alarm") {
+      model.rotation.x += -0.03; // лёгкий наклон вперёд
+    }
+
     // target params (mood влияет, но параметры будут сглажены -> без “рывка”)
     let LOOK_SMOOTH_T = 26;
     let MAX_YAW_T = 0.16;
@@ -625,6 +632,12 @@ const ReiController = {
       MAX_YAW_T = 0.20;
       MAX_PITCH_T = 0.12;
     }
+    if (mode === "alarm") {
+      LOOK_SMOOTH_T = Math.max(LOOK_SMOOTH_T, 40);
+      MAX_YAW_T = Math.max(MAX_YAW_T, 0.22);
+      MAX_PITCH_T = Math.max(MAX_PITCH_T, 0.14);
+    }
+
 
     // mode tweaks (мягко)
     if (mode === "thinking") {
@@ -679,6 +692,11 @@ const ReiController = {
     } else {
       targetYaw = 0.05 * YAW_SIGN;
       targetPitch = 0.02 * PITCH_SIGN;
+    }
+
+    if (mode === "alarm") {
+      // лёгкий наклон головы вниз = внимательность
+      targetPitch += 0.05 * PITCH_SIGN;
     }
 
     // микро-качания

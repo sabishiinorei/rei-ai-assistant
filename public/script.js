@@ -1,4 +1,4 @@
-import { setReiState, onReiStateChange, getReiState, reiEvent, decideOnUserMessage } from "./reiState.js";
+import { setReiState, onReiStateChange, getReiState, reiEvent, decideOnUserMessage, pulseAlarm } from "./reiState.js";
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
@@ -442,6 +442,7 @@ function energyMoodModeMultiplier(state) {
   if (mode === "thinking") mult *= 0.92;
   if (mode === "speaking") mult *= 0.96;
   if (mode === "idle") mult *= 1.03;
+  if (mode === "alarm") mult *= 0.90;
 
   return mult;
 }
@@ -487,25 +488,23 @@ setInterval(async () => {
     if (!data.items || !data.items.length) return;
 
     for (const r of data.items) {
-      reiEvent("thinking_start");
+      // 1) включаем alarm-режим на 1.5 сек (HUD+3D увидят state.mode="alarm")
+      pulseAlarm(1500);
 
-      reiEvent("alert_start");        // новый сигнал для HUD/анимки
-      reiEvent("thinking_start");
+      // 2) твои события (если где-то еще слушаешь)
+      reiEvent("alarm_start");
 
+      // 3) показываем сообщение
       addMessage(`⏰ Напоминание:\n${r.text}`, "rei");
 
-      reiEvent("thinking_end");
+      // 4) имитация “произнесла”
       reiEvent("speaking_start");
-
       setTimeout(() => {
         reiEvent("speaking_end");
-        reiEvent("alert_end");        // вернуть в обычный режим
+        reiEvent("alarm_end");
       }, 1500);
-
-      reiEvent("thinking_end");
-      reiEvent("speaking_start");
-      setTimeout(() => reiEvent("speaking_end"), 1200);
     }
+
   } catch (e) {
     // тихо, без спама в консоль
   }

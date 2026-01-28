@@ -1,7 +1,7 @@
 // ЯДРО РЕЙ (reiState)
 
 export const reiState = {
-  mode: "idle",        // idle | thinking | speaking | listening
+  mode: "idle",        // idle | thinking | speaking | listening | alarm
   mood: "calm",        // calm | happy | caring | focused
   energy: 0.6,         // 0..1
   focus: "chat",       // chat | input | cursor
@@ -43,7 +43,8 @@ const BASE_RATES = {
   thinking:  -0.030,
   speaking:  -0.045,
   idle:       0.020,
-  listening:  0.028
+  listening:  0.028,
+  alarm:     -0.020
 };
 
 /**
@@ -288,6 +289,43 @@ export function stopEnergyLoop() {
  */
 if (typeof window !== "undefined") {
   startEnergyLoop();
+}
+
+// =========================
+// alarm PULSE (temporary mode)
+// =========================
+
+let _alarmTimer = 0;
+
+/**
+ * Включает alarm-режим на ms (по умолчанию 1500мс),
+ * затем возвращает прошлый режим (обычно idle).
+ * Важно: ставим lock, чтобы autopilot не перебил alarm мгновенно.
+ */
+export function pulseAlarm(ms = 1500) {
+  const t = (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+  // запомним, куда возвращаться (если уже alarm — возвращаемся туда же)
+  const prevMode = reiState.mode === "alarm" ? "idle" : reiState.mode;
+
+  // включаем alarm
+  setReiState({ mode: "alarm" });
+
+  // заблокируем автопилот по mode, чтобы он не переключил обратно сразу
+  autopilot.locks.modeUntil = t + ms;
+
+  // если дернули pulseAlarm несколько раз — продлеваем
+  if (_alarmTimer) clearTimeout(alarmTimer);
+  _alarmTimer = setTimeout(() => {
+    // если за это время началось speaking/thinking/listening — не мешаем (автопилот сам разрулит)
+    // если всё ещё alarm — вернёмся
+    if (reiState.mode === "alarm") setReiState({ mode: prevMode });
+  }, ms);
+}
+
+// удобно дергать из любых мест фронта
+if (typeof window !== "undefined") {
+  window.reiAlarmPulse = pulseAlarm;
 }
 
 /* =========================
