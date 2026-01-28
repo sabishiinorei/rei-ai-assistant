@@ -346,6 +346,9 @@ async function sendMessage() {
 
   addMessage(text, "user");
 
+  input.value = "";
+  autoGrow(input);
+  
   reiEvent("user_message");
   const decision = decideOnUserMessage();
 
@@ -356,10 +359,6 @@ async function sendMessage() {
     addMessage(pickReflectLine(text), "rei");
     return;
   }
-
-
-  input.value = "";
-  autoGrow(input);
 
   if (window.CommandBus) {
     window.CommandBus.emit("command", { text });
