@@ -4,6 +4,18 @@ const dotenv = require("dotenv");
 const OpenAI = require("openai");
 const path = require("path");
 const db = require("./db");
+const {
+  addMemory: dbAddMemory,
+  listMemory: dbListMemory,
+  findDuplicateMemory: dbFindDuplicateMemory,
+  addReminder: dbAddReminder,
+  listReminders: dbListReminders,
+  clearMemory: dbClearMemory,
+  clearReminders: dbClearReminders,
+  getDueReminders: dbGetDueReminders,        // ✅ добавь
+  markReminderFired: dbMarkReminderFired     // ✅ добавь
+} = require("./dbMethods");
+
 
 dotenv.config();
 
@@ -231,6 +243,189 @@ async function evaluateMemory(message) {
     return { remember: false };
   }
 }
+
+function ensureUser(userId) {
+  db.prepare(`
+    INSERT OR IGNORE INTO users (user_id, created_at)
+    VALUES (?, ?)
+  `).run(userId, new Date().toISOString());
+}
+
+// MVP-парсер: ISO или "YYYY-MM-DD HH:mm"
+function parseDateTime(input) {
+  const raw = String(input || "").trim();
+
+  // 1) ISO с таймзоной или Date.parse (только если явно ISO)
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+    const t = Date.parse(raw);
+    if (!Number.isNaN(t)) return new Date(t).toISOString();
+  }
+
+  // 2) YYYY-MM-DD HH:mm  (2026-02-03 18:00)
+  let m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if (m) {
+    const [, y, mo, d, h, mi] = m;
+    const dt = new Date(+y, +mo - 1, +d, +h, +mi, 0);
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString();
+  }
+
+  // 3) DD-MM-YYYY HH:mm  (03-02-2026 18:00)
+  m = raw.match(/^(\d{2})-(\d{2})-(\d{4})[ T](\d{2}):(\d{2})$/);
+  if (m) {
+    const [, d, mo, y, h, mi] = m;
+    const dt = new Date(+y, +mo - 1, +d, +h, +mi, 0);
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString();
+  }
+
+  return null;
+}
+
+
+
+app.get("/cmd/help", (req, res) => {
+  res.json({
+    ok: true,
+    commands: [
+      "/help",
+      "/remember <text>",
+      "/memory",
+      "/remind <YYYY-MM-DD HH:mm> <text>",
+      "/reminders"
+    ]
+  });
+});
+
+app.post("/cmd/remember", (req, res) => {
+  try {
+    const { userId, text } = req.body || {};
+    if (!userId) return res.status(400).json({ ok: false, error: "userId is required" });
+    if (!text || !String(text).trim()) return res.status(400).json({ ok: false, error: "text is required" });
+
+    ensureUser(userId);
+
+    // MVP: все /remember считаем "long_term"
+    const clean = String(text).trim();
+
+    // ✅ дубликаты: не создаём вторую такую же запись
+    const existing = dbFindDuplicateMemory(userId, "long_term", clean);
+    if (existing) {
+      return res.json({ ok: true, duplicate: true, item: existing });
+    }
+
+    const item = dbAddMemory(userId, "long_term", clean);
+    res.json({ ok: true, duplicate: false, item });
+
+  } catch (e) {
+    console.error("cmd/remember ❌", e.message);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
+
+app.get("/cmd/memory", (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ ok: false, error: "userId is required" });
+
+    ensureUser(userId);
+
+    const items = dbListMemory(userId, 100);
+    // отдадим только важные типы (на будущее можно расширить)
+    const filtered = items.filter(x => x.type === "long_term" || x.type === "insight");
+    res.json({ ok: true, items: filtered });
+  } catch (e) {
+    console.error("cmd/memory ❌", e.message);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
+
+app.post("/cmd/remind", (req, res) => {
+  try {
+    const { userId, when, text } = req.body || {};
+    if (!userId) return res.status(400).json({ ok: false, error: "userId is required" });
+    if (!when || !String(when).trim()) return res.status(400).json({ ok: false, error: "when is required" });
+    if (!text || !String(text).trim()) return res.status(400).json({ ok: false, error: "text is required" });
+
+    ensureUser(userId);
+
+    const remindAtIso = parseDateTime(when);
+    if (!remindAtIso) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid datetime. Use ISO or "YYYY-MM-DD HH:mm"'
+      });
+    }
+
+    const item = dbAddReminder(userId, String(text).trim(), remindAtIso);
+    res.json({ ok: true, item });
+  } catch (e) {
+    console.error("cmd/remind ❌", e.message);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
+
+app.get("/cmd/reminders", (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ ok: false, error: "userId is required" });
+
+    ensureUser(userId);
+
+    const items = dbListReminders(userId, 200);
+    res.json({ ok: true, items });
+  } catch (e) {
+    console.error("cmd/reminders ❌", e.message);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
+
+app.post("/cmd/clear", (req, res) => {
+  try {
+    const { userId, scope } = req.body || {};
+    if (!userId) return res.status(400).json({ ok: false, error: "userId is required" });
+
+    ensureUser(userId);
+
+    if (scope === "memory") {
+      const r = dbClearMemory(userId);
+      return res.json({ ok: true, scope: "memory", ...r });
+    }
+
+    if (scope === "all") {
+      const m = dbClearMemory(userId);
+      const r = dbClearReminders(userId);
+      return res.json({ ok: true, scope: "all", memory: m.deleted, reminders: r.deleted });
+    }
+
+    return res.status(400).json({ ok: false, error: 'scope must be "memory" or "all"' });
+  } catch (e) {
+    console.error("cmd/clear ❌", e.message);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
+
+app.get("/cmd/due-reminders", (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ ok: false, error: "userId required" });
+    }
+
+    ensureUser(userId);
+
+    const now = new Date().toISOString();
+    const items = dbGetDueReminders(userId, now);
+
+    // сразу помечаем как сработавшие
+    for (const r of items) {
+      dbMarkReminderFired(r.id, now);
+    }
+
+    res.json({ ok: true, items });
+  } catch (e) {
+    console.error("due-reminders ❌", e);
+    res.status(500).json({ ok: false, error: "server error" });
+  }
+});
 
 /* =======================
    CHAT

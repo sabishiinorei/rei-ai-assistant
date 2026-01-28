@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS short_term (
   content TEXT,
   created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  remind_at TEXT NOT NULL,   -- ISO datetime string
+  created_at TEXT NOT NULL,
+  fired_at TEXT             -- NULL пока не сработало
+);
 `);
 
 module.exports = db;

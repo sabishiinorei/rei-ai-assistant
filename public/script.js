@@ -7,6 +7,58 @@ const avatar = document.getElementById("avatar");
 
 const API_URL = "/chat";
 
+async function cmdFetch(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
+function formatLocal(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+
+  return `${dd}-${mm}-${yyyy} ${hh}:${mi}`;
+}
+
+const ReiTone = {
+  neutral: {
+    remember_ok: (item) => `Запомнила. (#${item.id})\n“${item.content}”`,
+    remind_ok: (item) => `Хорошо. Напомню: ${formatLocal(item.remind_at)}\n“${item.text}”`,
+    memory_empty: () => `Память пуста.`,
+    reminders_empty: () => `Напоминаний нет.`
+  },
+  caring: {
+    remember_ok: (item) => `Хорошо, я запомнила 💙\n“${item.content}”`,
+    remind_ok: (item) => `Не переживай, я напомню 🕒\n${formatLocal(item.remind_at)}\n“${item.text}”`,
+    memory_empty: () => `Похоже, я пока ничего не храню.`,
+    reminders_empty: () => `Пока напоминаний нет.`
+  },
+  happy: {
+    remember_ok: (item) => `Готово! ✨ Я запомнила:\n“${item.content}”`,
+    remind_ok: (item) => `Отлично! Напомню вовремя 😌\n${formatLocal(item.remind_at)}\n“${item.text}”`,
+    memory_empty: () => `Пока пусто 🙂`,
+    reminders_empty: () => `Напоминаний пока нет 🙂`
+  }
+};
+
+function pickTone() {
+  const mood = (window.reiState && window.reiState.mood) ? window.reiState.mood : "neutral";
+  return ReiTone[mood] || ReiTone.neutral;
+}
+
 /* ID пользователя */
 let userId = localStorage.getItem("rei_user_id");
 if (!userId) {
@@ -119,10 +171,175 @@ function guessMoodByText(text) {
   return "focused";
 }
 
+function parseSlashCommand(text) {
+  const raw = (text || "").trim();
+  if (!raw.startsWith("/")) return null;
+
+  const parts = raw.slice(1).split(" ").filter(Boolean);
+  const name = (parts.shift() || "").toLowerCase();
+  const args = parts.join(" ");
+  return { name, args, raw };
+}
+
+function localHelpText() {
+  return [
+    "Доступные команды:",
+    " /help — список команд",
+    " /remember <текст> — сохранить заметку",
+    " /memory — показать сохранённое",
+    " /remind <дата/время> <текст> — напоминание",
+    " /reminders — список напоминаний",
+    "",
+    "⚙️ Команды выполняются локально/на сервере и не уходят в OpenAI."
+  ].join("\n");
+}
+
+async function respondLocalCommand(cmd) {
+  reiEvent("thinking_start");
+  const thinkingMsg = addMessage("Рей думает...", "rei");
+
+  try {
+    const uId = userId;
+
+    if (cmd.name === "help") {
+      thinkingMsg.querySelector(".text").textContent = localHelpText();
+      return;
+    }
+
+    if (cmd.name === "remember") {
+      const text = cmd.args.trim();
+      if (!text) throw new Error("Используй: /remember <текст>");
+
+      const data = await cmdFetch("/cmd/remember", {
+        method: "POST",
+        body: JSON.stringify({ userId: uId, text })
+      });
+
+      const tone = pickTone();
+
+      if (data.duplicate) {
+        thinkingMsg.querySelector(".text").textContent =
+          `Я это уже помню 💭\n“${data.item.content}”`;
+      } else {
+        thinkingMsg.querySelector(".text").textContent = tone.remember_ok(data.item);
+      }
+      return;
+    }
+
+    if (cmd.name === "memory") {
+      const data = await cmdFetch(`/cmd/memory?userId=${encodeURIComponent(uId)}`);
+      const items = data.items || [];
+
+      const tone = pickTone();
+
+      if (!items.length) {
+        thinkingMsg.querySelector(".text").textContent = tone.memory_empty();
+      } else {
+        const lines = items
+          .slice(0, 20)
+          .map((x, i) => `${i + 1}) ${x.content}`);
+
+        thinkingMsg.querySelector(".text").textContent =
+          `Сохранено (${items.length}):\n` + lines.join("\n");
+      }
+      return;
+    }
+
+    if (cmd.name === "remind") {
+      // Формат: /remind DD-MM-YYYY HH:mm <text>
+      const raw = cmd.args.trim();
+
+      const m = raw.match(/^(\d{2}-\d{2}-\d{4})\s+(\d{2}:\d{2})\s+(.+)$/);
+      if (!m) throw new Error(
+        'Похоже, формат неправильный.\n' +
+        'Нужно так: /remind DD-MM-YYYY HH:mm <текст>\n' +
+        'Пример: /remind 03-02-2026 10:00 в больницу'
+      );
+
+      const when = `${m[1]} ${m[2]}`; // дата+время
+      const text = m[3].trim();
+
+      const data = await cmdFetch("/cmd/remind", {
+        method: "POST",
+        body: JSON.stringify({ userId: uId, when, text })
+      });
+
+      const tone = pickTone();
+      thinkingMsg.querySelector(".text").textContent = tone.remind_ok(data.item);
+      return;
+    }
+
+    if (cmd.name === "reminders") {
+      const data = await cmdFetch(`/cmd/reminders?userId=${encodeURIComponent(uId)}`);
+      const items = data.items || [];
+
+      const tone = pickTone();
+
+      if (!items.length) {
+        thinkingMsg.querySelector(".text").textContent = tone.reminders_empty();
+      } else {
+        const lines = items
+          .slice(0, 20)
+          .map((x, i) => {
+            const fired = x.fired_at ? "✅" : "⏳";
+            return `${i + 1}) ${fired} ${formatLocal(x.remind_at)} — ${x.text}`;
+          });
+
+        thinkingMsg.querySelector(".text").textContent =
+          `Напоминания (${items.length}):\n` + lines.join("\n");
+      }
+      return;
+    }
+
+    if (cmd.name === "clear") {
+      const arg = cmd.args.trim().toLowerCase();
+      const scope = (arg === "all") ? "all" : "memory";
+
+      const data = await cmdFetch("/cmd/clear", {
+        method: "POST",
+        body: JSON.stringify({ userId: uId, scope })
+      });
+
+      thinkingMsg.querySelector(".text").textContent =
+        scope === "all"
+          ? `Очистила всё тестовое.\nПамять: -${data.memory}\nНапоминания: -${data.reminders}`
+          : `Очистила память.\nУдалено записей: ${data.deleted}`;
+
+      return;
+    }
+
+    // неизвестная команда
+    thinkingMsg.querySelector(".text").textContent =
+      `Неизвестная команда: /${cmd.name}\n/help — список команд`;
+
+  } catch (e) {
+    thinkingMsg.querySelector(".text").textContent = `Ошибка команды: ${e.message}`;
+
+  } finally {
+    reiEvent("thinking_end");
+    reiEvent("speaking_start");
+    setTimeout(() => reiEvent("speaking_end"), 650);
+  }
+}
+
+
 /* Основная логика чата */
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
+
+  // ✅ 1) Slash-команды: НЕ уходим в /chat и не тратим API
+  const cmd = parseSlashCommand(text);
+  if (cmd) {
+    addMessage(text, "user");
+
+    input.value = "";
+    autoGrow(input);
+
+    // команды должны всегда отвечать, минуя decision layer
+    respondLocalCommand(cmd);
+    return;
+  }
 
   const mood = guessMoodByText(text);
   reiEvent("user_emotion", { mood });
@@ -258,3 +475,38 @@ onReiStateChange((state) => {
   }
 });
 
+// ===== AUTO REMINDER POLLING =====
+const REMINDER_POLL_MS = 5000;
+
+setInterval(async () => {
+  try {
+    const data = await cmdFetch(
+      `/cmd/due-reminders?userId=${encodeURIComponent(userId)}`
+    );
+
+    if (!data.items || !data.items.length) return;
+
+    for (const r of data.items) {
+      reiEvent("thinking_start");
+
+      reiEvent("alert_start");        // новый сигнал для HUD/анимки
+      reiEvent("thinking_start");
+
+      addMessage(`⏰ Напоминание:\n${r.text}`, "rei");
+
+      reiEvent("thinking_end");
+      reiEvent("speaking_start");
+
+      setTimeout(() => {
+        reiEvent("speaking_end");
+        reiEvent("alert_end");        // вернуть в обычный режим
+      }, 1500);
+
+      reiEvent("thinking_end");
+      reiEvent("speaking_start");
+      setTimeout(() => reiEvent("speaking_end"), 1200);
+    }
+  } catch (e) {
+    // тихо, без спама в консоль
+  }
+}, REMINDER_POLL_MS);
